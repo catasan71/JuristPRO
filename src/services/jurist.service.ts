@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject, effect } from '@angular/core';
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerateContentStreamResult } from '@google/generative-ai';
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 import { AuthService, UserConsents } from './auth.service';
 import { db } from '../app/firebase';
 import { doc, getDoc, updateDoc, setDoc, collection, getDocs, addDoc, query, where, orderBy, onSnapshot, deleteDoc } from 'firebase/firestore';
@@ -178,12 +178,12 @@ export class JuristService {
 
   totalRevenue = computed(() => this._transactions().reduce((acc, tx) => acc + tx.amount, 0));
 
-  private _aiInstance: GoogleGenerativeAI | null = null;
+  private _aiInstance: GoogleGenAI | null = null;
 
-  private async getAiInstance(): Promise<GoogleGenerativeAI> {
+  private async getAiInstance(): Promise<GoogleGenAI> {
     if (this._aiInstance) return this._aiInstance;
     
-    const apiKey = typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : environment.geminiApiKey;
+    const apiKey = typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : (environment as any).geminiApiKey;
     
     if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey === '') {
       const msg = 'Cheia API Gemini nu este configurată. Administratorul platformei trebuie să regenereze cheia API.';
@@ -192,7 +192,7 @@ export class JuristService {
     }
     
     try {
-      this._aiInstance = new GoogleGenerativeAI(apiKey);
+      this._aiInstance = new GoogleGenAI({ apiKey });
       return this._aiInstance;
     } catch (error) {
       this.notificationService.error('Eroare la inițializarea motorului AI.');
@@ -839,37 +839,33 @@ export class JuristService {
   // --- AI FEATURES WITH SAFEGUARDS ---
   
   /**
-   * Apel universal către Gemini 1.5 Flash.
+   * Apel universal către Gemini 3 Flash.
    * Optimizat pentru latență minimă și stabilitate maximă.
    */
   private async _callAi(
     parameters: AiCallParameters
-  ): Promise<GenerateContentStreamResult> {
+  ): Promise<any> {
     const ai = await this.getAiInstance();
     const timeoutMs = parameters.timeoutMs || 90000;
     
-    // Simplificăm apelul la v1 pentru stabilitate maximă, evitând erorile 404/v1beta
     try {
-      const model = ai.getGenerativeModel({ 
-        model: 'gemini-1.5-flash',
-        systemInstruction: parameters.systemInstruction,
-        safetySettings: LEGAL_SAFETY_SETTINGS
-      });
-
-      return await this._executeWithTimeout(model, parameters, timeoutMs);
+      return await this._executeWithTimeout(ai, parameters, timeoutMs);
     } catch (e: unknown) {
       return this._handleAiError(e);
     }
   }
 
-  private async _executeWithTimeout(model: any, parameters: AiCallParameters, timeoutMs: number): Promise<GenerateContentStreamResult> {
-    const responsePromise = model.generateContentStream({
+  private async _executeWithTimeout(ai: GoogleGenAI, parameters: AiCallParameters, timeoutMs: number): Promise<any> {
+    const responsePromise = ai.models.generateContentStream({
+      model: 'gemini-3-flash-preview',
       contents: parameters.contents,
-      generationConfig: parameters.generationConfig || { 
+      config: {
+        systemInstruction: parameters.systemInstruction,
         temperature: 0.1,
         topP: 0.9,
         topK: 40,
-        maxOutputTokens: 2048
+        maxOutputTokens: 2048,
+        tools: parameters.tools
       }
     });
     
@@ -883,16 +879,15 @@ export class JuristService {
   private _handleAiError(e: unknown): never {
     console.error('Core AI Error:', e);
     const msg = (e as { message?: string })?.message || '';
-    const status = (e as { status?: number })?.status;
     
     if (msg.includes('AI_TIMEOUT')) {
       throw new Error('Serverul AI este supraîncărcat. Reîncercați în 10 secunde.', { cause: e });
     }
-    if (status === 403 || msg.includes('key')) {
+    if (msg.includes('key')) {
       throw new Error('Cheie API invalidă sau expirată.', { cause: e });
     }
     
-    throw new Error(`Asistentul este momentan indisponibil. Reîncercați în câteva momente.`, { cause: e });
+    throw new Error(`Asistentul este momentan indisponibil (${msg || 'Eroare conexiune'}). Reîncercați în câteva momente.`, { cause: e });
   }
 
   async chatWithAssistant(prompt: string, onChunk?: (chunk: string) => void): Promise<ChatMessage> {
@@ -911,8 +906,8 @@ export class JuristService {
         tools: [{ googleSearch: {} }]
       });
 
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
+      for await (const chunk of result) {
+        const text = chunk.text;
         if (text) {
           fullText += text;
           if (onChunk) onChunk(fullText);
@@ -953,8 +948,8 @@ export class JuristService {
         tools: [{ googleSearch: {} }]
       });
       
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
+      for await (const chunk of result) {
+        const text = chunk.text;
         if (text) {
           fullText += text;
           if (onChunk) onChunk(fullText);
@@ -980,8 +975,8 @@ export class JuristService {
         tools: [{ googleSearch: {} }]
       });
       
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
+      for await (const chunk of result) {
+        const text = chunk.text;
         if (text) {
           fullText += text;
           if (onChunk) onChunk(fullText);
@@ -1013,8 +1008,8 @@ export class JuristService {
         tools: [{ googleSearch: {} }]
       });
       
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
+      for await (const chunk of result) {
+        const text = chunk.text;
         if (text) {
           fullText += text;
           if (onChunk) onChunk(fullText);
@@ -1040,8 +1035,8 @@ export class JuristService {
         tools: [{ googleSearch: {} }]
       });
       
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
+      for await (const chunk of result) {
+        const text = chunk.text;
         if (text) {
           fullText += text;
           if (onChunk) onChunk(fullText);
