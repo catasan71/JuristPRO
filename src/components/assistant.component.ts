@@ -151,29 +151,64 @@ export class AssistantComponent {
     const prompt = this.userInput;
     this.userInput = '';
     
+    // Add user message and get new list synchronously
     this.messages.update(msgs => [...msgs, { role: 'user', content: prompt, timestamp: new Date() }]);
 
-    // Create a placeholder for the AI response
+    // Calculate index for the next AI message
     const aiMessageIndex = this.messages().length;
-    this.messages.update(msgs => [...msgs, { role: 'ai', content: '', timestamp: new Date() }]);
+    
+    // Add placeholder string
+    this.messages.update(msgs => [...msgs, { role: 'ai', content: '...', timestamp: new Date() }]);
 
-    const response = await this.juristService.chatWithAssistant(prompt, (text) => {
+    try {
+      const response = await this.juristService.chatWithAssistant(prompt, (text) => {
+        this.messages.update(msgs => {
+          const newMsgs = [...msgs];
+          if (newMsgs[aiMessageIndex]) {
+            newMsgs[aiMessageIndex] = { ...newMsgs[aiMessageIndex], content: text };
+          }
+          return newMsgs;
+        });
+        this.cdr.detectChanges();
+        this.scrollToBottom();
+      });
+      
+      // Final update to include sources
       this.messages.update(msgs => {
         const newMsgs = [...msgs];
-        newMsgs[aiMessageIndex] = { ...newMsgs[aiMessageIndex], content: text };
+        if (newMsgs[aiMessageIndex]) {
+          newMsgs[aiMessageIndex] = {
+            ...response,
+            timestamp: newMsgs[aiMessageIndex].timestamp // Keep original placeholder timestamp
+          };
+        }
         return newMsgs;
       });
-      this.cdr.detectChanges();
       this.scrollToBottom();
-    });
-    
-    // Final update to include sources
-    this.messages.update(msgs => {
-      const newMsgs = [...msgs];
-      newMsgs[aiMessageIndex] = response;
-      return newMsgs;
-    });
-    this.scrollToBottom();
+    } catch (err: any) {
+      console.error('Chat error:', err);
+      let errorDisplay = 'Eroare de comunicare.';
+      
+      if (err?.message?.includes('SEC_ERR_LEAKED_KEY')) {
+        errorDisplay = 'EROARE CRITICĂ: Cheia API Gemini a fost blocată de Google (Leaked). Administratorul trebuie să regenereze cheia din setări.';
+      } else if (err?.message?.includes('TIMEOUT_LATENCY')) {
+        errorDisplay = 'TIMEOUT: Serverul AI este prea ocupat sau speța este prea complexă. Vă rugăm să încercați din nou.';
+      } else {
+        errorDisplay = `Eroare AI: ${err?.message || 'Nu s-a putut obține un răspuns.'}`;
+      }
+      
+      this.messages.update(msgs => {
+        const newMsgs = [...msgs];
+        if (newMsgs[aiMessageIndex]) {
+          newMsgs[aiMessageIndex] = { 
+            ...newMsgs[aiMessageIndex], 
+            content: errorDisplay,
+            sources: []
+          };
+        }
+        return newMsgs;
+      });
+    }
   }
 
   exportMessage(msg: ChatMessage, index: number) {

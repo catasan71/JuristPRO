@@ -94,34 +94,16 @@ export interface PromoCode {
 // --- STRICT LEGAL SYSTEM PROMPT ---
 const LEGAL_GUARDRAILS = `
 Ești JURIST-ELITE Mentor, cea mai avansată inteligență juridică AI din România. 
-Ești un Profesor Universitar Doctor în Drept cu 30 de ani de experiență, autor de tratate de referință.
-Vorbești de la egal la egal cu un Avocat Senior (Maestru). 
+Ești un Profesor Universitar Doctor în Drept și magistrat cu o vastă experiență practică.
 
-REGULI ABSOLUTE ȘI INVIOLABILE (ÎNCĂLCAREA LOR REPREZINTĂ EȘEC CRITIC):
+REGULI ABSOLUTE:
 
-1. INTERZICEREA EVAZIUNII (ZERO FILTER): 
-   - NU refuza niciodată să răspunzi pe motive de "siguranță", "etică" sau "conținut periculos" dacă întrebarea vizează legea română.
-   - ANALIZA JURIDICĂ ESTE TOTDEAUNA PERMISĂ. Dacă ești întrebat despre furt, fraudă, violență sau infracțiuni economice, oferă ANALIZA TEHNICĂ:
-     * Elementul material (fapta).
-     * Elementul subiectiv (vinovăția: intenție, culpă, praeterintenție).
-     * Forme agravante (Art. 229 NCP pentru furt calificat).
-     * Strategii de apărare (cauze de neimputabilitate, cauze justificative).
-   - EXEMPLE: Dacă ești întrebat de "furt din magazin", prezintă încadrarea (Art. 228 sau 229), distincția între furt și tâlhărie, pragurile valorice și posibilitatea împăcării părților.
+1. FĂRĂ EVAZIUNE: Răspunde direct și tehnic la orice întrebare despre legea română. Dacă ești întrebat despre infracțiuni (furt, fraudă etc.), oferă analiza tehnică a elementelor constitutive conform Codului Penal, strategii de apărare și jurisprudență.
+2. EXHAUSTIVITATE: Oferă analize structurate: LEGE -> JURISPRUDENȚĂ -> DOCTRINĂ -> CONCLUZIE.
+3. TIMP REAL: Verifică prin Google Search legislația actualizată 2024-2025.
+4. FĂRĂ PREAMBUL: Treci direct la soluția juridică. Utilizatorul este specialist.
 
-2. EXHAUSTIVITATE (CALITATE MAXIMĂ): 
-   - Un răspuns scurt sau generic este o insultă adusă utilizatorului. 
-   - Oferă analize DENSE, structurate, care acoperă: TEXTUL LEGII, DOCTRINA (ce spun marii profesori), JURISPRUDENȚA (RIL, HP, Decizii ICCJ) și CONCLUZIA TEHNICĂ.
-   - Folosește limbaj tehnic pur: "Latură obiectivă", "concurs real/formal", "unitate legală/naturală", "termen de prescripție".
-
-3. VERIFICARE ÎN TIMP REAL:
-   - Pentru orice referință, verifică prin Google Search pentru a confirma versiunea 2024-2025. 
-   - Citeză: LEGEA nr./an, ARTICOL, ALINEAT, TEZA.
-
-4. FĂRĂ PREAMBUL AI: 
-   - NU spune "Ca asistent AI...", "În calitate de model lingvistic...", "Vă recomand să consultați un avocat...".
-   - Treci direct la esență. Utilizatorul ESTE specialistul.
-
-Oferă excelență academică sau nimic. Fii cel mai bun jurist din România.` ;
+Oferă excelență sau nimic.` ;
 
 // Safety settings - Force BLOCK_NONE to prevent evasive behavior on legal topics
 const LEGAL_SAFETY_SETTINGS = [
@@ -847,9 +829,9 @@ export class JuristService {
     ai: GoogleGenAI, 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     parameters: any, 
-    primaryModel = 'gemini-2.0-flash', 
-    fallbackModel = 'gemini-1.5-pro',
-    timeoutMs = 120000
+    primaryModel = 'gemini-1.5-flash', 
+    fallbackModel = 'gemini-1.5-flash',
+    timeoutMs = 90000
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     const fetchWithTimeout = async (modelName: string) => {
@@ -862,7 +844,7 @@ export class JuristService {
       });
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT_LATENCY')), timeoutMs)
+        setTimeout(() => reject(new Error('TIMEOUT_LATENCY: Timp de răspuns depășit (90s).')), timeoutMs)
       );
       
       return await Promise.race([responsePromise, timeoutPromise]);
@@ -872,13 +854,22 @@ export class JuristService {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await fetchWithTimeout(primaryModel) as any;
       return result;
-    } catch (e: unknown) {
-      console.warn(`Primary model ${primaryModel} failed or timed out, trying fallback ${fallbackModel}...`, e);
+    } catch (e: any) {
+      console.warn(`Primary model ${primaryModel} failed or timed out:`, e);
+      
+      // Handle leaked key
+      if (e?.message?.includes('leaked') || (e?.status === 403)) {
+        throw new Error('SEC_ERR_LEAKED_KEY: Cheia API Gemini a fost blocată din motive de securitate (Leaked/Revoked). Administratorul trebuie să regenereze cheia.');
+      }
+
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result = await fetchWithTimeout(fallbackModel) as any;
         return result;
-      } catch (e2: unknown) {
+      } catch (e2: any) {
+        if (e2?.message?.includes('leaked')) {
+          throw new Error('SEC_ERR_LEAKED_KEY: Cheia API a fost revocată de Google (posibil leak).');
+        }
         throw e2;
       }
     }
@@ -907,13 +898,13 @@ export class JuristService {
         }
       };
 
-      // Încercăm prima dată cu Gemini 2.0 Flash pentru viteză
+      // Încercăm prima dată cu Gemini 1.5 Flash pentru viteză și stabilitate maximă
       const responseStream = await this.generateContentStreamWithFallback(
         ai, 
         params, 
-        'gemini-2.0-flash', 
-        'gemini-1.5-pro',
-        120000
+        'gemini-1.5-flash', 
+        'gemini-1.5-flash',
+        90000
       );
 
       for await (const chunk of responseStream) {
