@@ -848,47 +848,66 @@ export class JuristService {
     const ai = await this.getAiInstance();
     const timeoutMs = parameters.timeoutMs || 90000;
     
+    // Tentative 1: High performance with tools (v1beta)
     try {
       const model = ai.getGenerativeModel({ 
         model: 'gemini-1.5-flash',
         systemInstruction: parameters.systemInstruction,
         safetySettings: LEGAL_SAFETY_SETTINGS,
         tools: parameters.tools
-      });
+      }, { apiVersion: 'v1beta' });
 
-      const responsePromise = model.generateContentStream({
-        contents: parameters.contents,
-        generationConfig: parameters.generationConfig || { 
-          temperature: 0.1,
-          topP: 0.9,
-          topK: 40,
-          maxOutputTokens: 2048
-        }
-      });
-      
-      const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('AI_TIMEOUT')), timeoutMs)
-      );
-      
-      const result = await Promise.race([responsePromise, timeoutPromise]);
-      return result;
+      return await this._executeWithTimeout(model, parameters, timeoutMs);
     } catch (e: unknown) {
-      console.error('Core AI Error:', e);
       const msg = (e as { message?: string })?.message || '';
-      const status = (e as { status?: number })?.status;
-      
-      if (msg.includes('AI_TIMEOUT')) {
-        throw new Error('Serverul AI este supraîncărcat. Reîncercați în 10 secunde.', { cause: e });
+      // Dacă e 404 pe v1beta sau eroare de "tools", încercăm varianta stabilă v1
+      if (msg.includes('404') || msg.includes('tool') || msg.includes('not found')) {
+        try {
+          const stableModel = ai.getGenerativeModel({ 
+            model: 'gemini-1.5-flash',
+            systemInstruction: parameters.systemInstruction,
+            safetySettings: LEGAL_SAFETY_SETTINGS
+          });
+          return await this._executeWithTimeout(stableModel, parameters, timeoutMs);
+        } catch (innerE: unknown) {
+           return this._handleAiError(innerE);
+        }
       }
-      if (msg.includes('404')) {
-        throw new Error('Eroare tehnică AI (404). Backend-ul este momentan indisponibil.', { cause: e });
-      }
-      if (status === 403 || msg.includes('key')) {
-        throw new Error('Cheie API invalidă sau expirată.', { cause: e });
-      }
-      
-      throw new Error(`Eroare AI: ${msg || 'Sistem indisponibil'}`, { cause: e });
+      return this._handleAiError(e);
     }
+  }
+
+  private async _executeWithTimeout(model: any, parameters: AiCallParameters, timeoutMs: number): Promise<GenerateContentStreamResult> {
+    const responsePromise = model.generateContentStream({
+      contents: parameters.contents,
+      generationConfig: parameters.generationConfig || { 
+        temperature: 0.1,
+        topP: 0.9,
+        topK: 40,
+        maxOutputTokens: 2048
+      }
+    });
+    
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('AI_TIMEOUT')), timeoutMs)
+    );
+    
+    return await Promise.race([responsePromise, timeoutPromise]);
+  }
+
+  private _handleAiError(e: unknown): never {
+    console.error('Core AI Error:', e);
+    const msg = (e as { message?: string })?.message || '';
+    const status = (e as { status?: number })?.status;
+    
+    if (msg.includes('AI_TIMEOUT')) {
+      throw new Error('Serverul AI este supraîncărcat. Reîncercați în 10 secunde.', { cause: e });
+    }
+    if (status === 403 || msg.includes('key')) {
+      throw new Error('Cheie API invalidă sau expirată.', { cause: e });
+    }
+    
+    throw new Error(`Asistentul este momentan indisponibil. Reîncercați în câteva momente.`, { cause: e });
   }
 
   async chatWithAssistant(prompt: string, onChunk?: (chunk: string) => void): Promise<ChatMessage> {
