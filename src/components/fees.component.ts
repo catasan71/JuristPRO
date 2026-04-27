@@ -2,11 +2,12 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService } from '../services/jurist.service';
+import { MarkdownPipe } from '../pipes/markdown.pipe';
 
 @Component({
   selector: 'app-fees',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MarkdownPipe],
   template: `
     <div class="h-full flex flex-col bg-jurist-card rounded-xl border border-gray-800 shadow-neon overflow-hidden animate-fadeIn">
       <!-- Header -->
@@ -100,7 +101,7 @@ import { JuristService } from '../services/jurist.service';
             </div>
 
             <h3 class="text-xl font-bold mb-4 uppercase text-center border-b-2 border-black pb-2 pt-2">Deviz Estimativ Costuri</h3>
-            <div class="whitespace-pre-wrap leading-relaxed" [innerHTML]="formattedResult()"></div>
+            <div class="whitespace-pre-wrap leading-relaxed prose prose-sm max-w-none text-black" [innerHTML]="resultText() | markdown:'light'"></div>
             
             <div class="mt-8 pt-4 border-t border-gray-300 text-center text-xs text-gray-500">
               Generat de JuristPRO AI. Valorile sunt estimative conform legislației la zi.
@@ -146,15 +147,6 @@ export class FeesComponent {
       this.resultText.set(text);
     });
     this.resultText.set(res);
-  }
-
-  formattedResult() {
-    // Simple bolding of key terms
-    return this.resultText()
-      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-      .replace(/Taxa de timbru/g, '<span class="text-red-700 font-bold">Taxa de timbru</span>')
-      .replace(/Onorariu/g, '<span class="text-blue-700 font-bold">Onorariu</span>')
-      .replace(/Total/g, '<span class="text-green-700 font-bold text-lg">TOTAL</span>');
   }
 
   exportDoc() {

@@ -1,7 +1,8 @@
-import { Component, inject, signal, computed, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, signal, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService } from '../services/jurist.service';
+import { MarkdownPipe } from '../pipes/markdown.pipe';
 
 interface UploadedFile {
   name: string;
@@ -13,7 +14,7 @@ interface UploadedFile {
 @Component({
   selector: 'app-audit',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MarkdownPipe],
   template: `
     <div class="h-full flex flex-col bg-jurist-card rounded-xl border border-gray-800 shadow-neon overflow-hidden">
       <!-- Tabs -->
@@ -146,7 +147,7 @@ interface UploadedFile {
                    </div>
 
                    <!-- Report Content with fixed formatting -->
-                   <div class="text-sm text-justify leading-relaxed space-y-2" [innerHTML]="formattedReport()"></div>
+                   <div class="text-sm text-justify leading-relaxed space-y-2" [innerHTML]="auditResult() | markdown"></div>
                    
                    <div class="mt-12 pt-6 border-t border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
                      <p class="text-xs text-gray-600 italic">Prezentul raport reprezintă o opinie juridică bazată pe documentele furnizate și legislația în vigoare.</p>
@@ -268,30 +269,6 @@ export class AuditComponent {
     });
     this.auditResult.set(result);
   }
-
-  formattedReport = computed(() => {
-    const raw = this.auditResult();
-    if (!raw) return '';
-
-    return raw.split('\n').map(line => {
-      let l = line.trim();
-      if (!l) return '<br>';
-      
-      l = l.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>');
-      
-      if (l.startsWith('### ')) return `<h5 class="font-bold text-gray-300 mt-2">${l.substring(4)}</h5>`;
-      if (l.startsWith('## ')) return `<h4 class="text-lg font-bold text-white mt-4">${l.substring(3)}</h4>`;
-      if (l.startsWith('# ')) return `<h3 class="text-xl font-bold text-jurist-orange border-b border-gray-700 mt-6 pb-2">${l.substring(2)}</h3>`;
-
-      if (/^(\d+\.|[IVX]+\.)\s/.test(l)) {
-        return `<h3 class="text-lg font-bold mt-6 mb-2 text-jurist-orange border-b border-gray-700 pb-1">${l}</h3>`;
-      }
-      if (l.startsWith('- ') || l.startsWith('• ')) {
-         return `<div class="flex items-start gap-2 mb-1 ml-4"><span class="text-jurist-orange mt-1.5">•</span><span class="text-gray-300">${l.substring(1).trim()}</span></div>`;
-      }
-      return `<p class="mb-2 text-gray-300">${l}</p>`;
-    }).join('');
-  });
 
   async generateEvidence() {
     if (!this.evidencePrompt) return;

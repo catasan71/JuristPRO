@@ -2,11 +2,12 @@ import { Component, inject, signal, ElementRef, ViewChild, effect, ChangeDetecto
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService, ChatMessage } from '../services/jurist.service';
+import { MarkdownPipe } from '../pipes/markdown.pipe';
 
 @Component({
   selector: 'app-assistant',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MarkdownPipe],
   template: `
     <div class="h-full flex flex-col bg-jurist-card rounded-xl border border-gray-800 overflow-hidden shadow-neon relative animate-fadeIn">
       <!-- Header -->
@@ -30,7 +31,11 @@ import { JuristService, ChatMessage } from '../services/jurist.service';
           <div [class]="'flex flex-col ' + (msg.role === 'user' ? 'items-end' : 'items-start')">
             <!-- Message Bubble -->
             <div [class]="'max-w-[85%] rounded-2xl p-4 ' + (msg.role === 'user' ? 'bg-jurist-orange text-white rounded-tr-sm' : 'bg-gray-800 text-gray-200 rounded-tl-sm border border-gray-700')">
-              <div class="whitespace-pre-wrap text-sm leading-relaxed text-justify">{{ msg.content }}</div>
+              @if (msg.role === 'ai') {
+                 <div class="whitespace-pre-wrap text-sm leading-relaxed text-left" [innerHTML]="msg.content | markdown"></div>
+              } @else {
+                 <div class="whitespace-pre-wrap text-sm leading-relaxed text-left">{{ msg.content }}</div>
+              }
               
               <!-- CITATION SOURCES (Grounding) -->
               @if (msg.role === 'ai' && msg.sources && msg.sources.length > 0) {

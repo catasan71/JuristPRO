@@ -874,7 +874,8 @@ export class JuristService {
         topP: 0.9,
         topK: 40,
         maxOutputTokens: 8192,
-        tools: parameters.tools
+        tools: parameters.tools,
+        safetySettings: LEGAL_SAFETY_SETTINGS
       }
     });
     

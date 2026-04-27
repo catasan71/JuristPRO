@@ -2,6 +2,7 @@ import { Component, inject, signal, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService } from '../services/jurist.service';
+import { MarkdownPipe } from '../pipes/markdown.pipe';
 
 interface DocCategory {
   id: string;
@@ -13,7 +14,7 @@ interface DocCategory {
 @Component({
   selector: 'app-drafting',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MarkdownPipe],
   template: `
     <div class="h-full flex flex-col bg-jurist-card rounded-xl border border-gray-800 shadow-neon overflow-hidden animate-fadeIn">
       <div class="p-6 border-b border-gray-800 bg-jurist-dark flex justify-between items-center">
@@ -132,7 +133,7 @@ interface DocCategory {
               <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-jurist-orange via-red-500 to-purple-600 rounded-t-lg"></div>
               
               <!-- Content -->
-              <div class="whitespace-pre-wrap leading-relaxed text-[11pt] text-justify font-serif text-gray-200" [innerText]="generatedDoc()"></div>
+              <div class="whitespace-pre-wrap leading-relaxed text-[11pt] text-justify font-serif text-gray-200" [innerHTML]="generatedDoc() | markdown"></div>
             </div>
           } @else {
             <div class="h-full flex flex-col items-center justify-center text-gray-500 opacity-60 select-none border-2 border-dashed border-gray-800 rounded-xl m-4 bg-gray-900/20">

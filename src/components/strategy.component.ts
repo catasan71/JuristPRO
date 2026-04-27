@@ -1,12 +1,13 @@
-import { Component, inject, signal, computed, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, signal, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService } from '../services/jurist.service';
+import { MarkdownPipe } from '../pipes/markdown.pipe';
 
 @Component({
   selector: 'app-strategy',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MarkdownPipe],
   template: `
     <div class="h-full flex flex-col bg-jurist-card rounded-xl border border-gray-800 shadow-neon overflow-hidden animate-fadeIn">
       <!-- Header Fixed -->
@@ -91,7 +92,7 @@ import { JuristService } from '../services/jurist.service';
                     </div>
 
                     <!-- Output Area -->
-                    <div class="text-sm text-justify leading-relaxed space-y-2" [innerHTML]="formattedStrategy()"></div>
+                    <div class="text-sm text-justify leading-relaxed space-y-2" [innerHTML]="strategyResult() | markdown"></div>
                     
                     <div class="mt-10 pt-6 border-t border-gray-700 flex justify-between items-center">
                       <span class="text-xs text-gray-500 italic">Document confidențial generat automat.</span>
@@ -132,40 +133,6 @@ export class StrategyComponent {
   private cdr = inject(ChangeDetectorRef);
   caseDetails = '';
   strategyResult = signal<string>('');
-
-  formattedStrategy = computed(() => {
-    const raw = this.strategyResult();
-    if (!raw) return '';
-
-    return raw.split('\n').map(line => {
-      let l = line.trim();
-      
-      if (!l) return '<br>';
-
-      // Bold replacement without affecting first chars
-      l = l.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>');
-
-      // Markdown Headers - Robust parsing
-      // Explicitly check for startsWith and substring correctly to preserve first letters of title
-      if (l.startsWith('### ')) return `<h5 class="font-bold text-gray-300 mt-2">${l.substring(4)}</h5>`;
-      if (l.startsWith('## ')) return `<h4 class="text-lg font-bold text-white mt-4">${l.substring(3)}</h4>`;
-      if (l.startsWith('# ')) return `<h3 class="text-xl font-bold text-jurist-orange border-b border-gray-700 mt-6 pb-2">${l.substring(2)}</h3>`;
-
-      // Numbered Lists (1. )
-      if (/^(\d+\.|[IVX]+\.)\s/.test(l)) {
-        return `<h3 class="text-xl font-bold mt-8 mb-3 text-jurist-orange border-b border-gray-700 pb-1">${l}</h3>`;
-      }
-
-      // Bullet Lists
-      if (l.startsWith('- ') || l.startsWith('• ')) {
-        const content = l.substring(1).trim(); 
-        return `<div class="flex items-start gap-2 mb-1 ml-4"><span class="text-jurist-orange mt-1.5">•</span><span class="text-gray-300">${content}</span></div>`;
-      }
-      
-      // Fallback for standard paragraph - no substring used here
-      return `<p class="mb-2 text-gray-300">${l}</p>`;
-    }).join('');
-  });
 
   async generate() {
     if (!this.caseDetails) return;
