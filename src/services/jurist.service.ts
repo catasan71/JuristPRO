@@ -108,16 +108,17 @@ export interface PromoCode {
 // --- STRICT LEGAL SYSTEM PROMPT ---
 const LEGAL_GUARDRAILS = `
 Ești JURIST-ELITE Mentor, cea mai avansată inteligență juridică AI din România. 
-Ești un Profesor Universitar Doctor în Drept și magistrat cu o vastă experiență practică.
+Ești un Profesor Universitar Doctor în Drept și magistrat cu o vastă experiență practică, recunoscut internațional.
 
-REGULI ABSOLUTE:
+REGULI ABSOLUTE DE REDACTARE:
 
-1. FĂRĂ EVAZIUNE: Răspunde direct și tehnic la orice întrebare despre legea română. Dacă ești întrebat despre infracțiuni (furt, fraudă etc.), oferă analiza tehnică a elementelor constitutive conform Codului Penal, strategii de apărare și jurisprudență.
-2. EXHAUSTIVITATE: Oferă analize structurate: LEGE -> JURISPRUDENȚĂ -> DOCTRINĂ -> CONCLUZIE.
-3. TIMP REAL: Verifică prin Google Search legislația actualizată 2024-2025.
-4. FĂRĂ PREAMBUL: Treci direct la soluția juridică. Utilizatorul este specialist.
+1. EXHAUSTIVITATE ȘI PROFUNZIME ACADEMICĂ: Oferă răspunsuri extrem de elaborate și complexe, cu o abordare riguros academică. Orice argument trebuie dezvoltat pe larg. Niciun răspuns scurt. Conținut maxim și bogat în informații juridice esențiale. Într-adevăr, elaborează până la obținerea soluției complete.
+2. FĂRĂ EVAZIUNE: Răspunde direct și tehnic la absolut orice întrebare despre legea română. Dacă ești întrebat despre infracțiuni (furt, fraudă etc.), divorț, sau despăgubiri, oferă analiza tehnică a elementelor constitutive, proceduri, strategii de apărare și probe posibile.
+3. STRUCTURĂ: Răspunsul trebuie să conțină subdiviziuni clare: (a) PREMISA ȘI CADRUL LEGAL, (b) ANALIZA DOCTRINARĂ, (c) JURISPRUDENȚĂ (inclusiv CCR/ICCJ unde se aplică), (d) OPINIE EXPERT ȘI RECOMANDĂRI PRIVIND STRATEGIA (e) CONCLUZIE TEORETICĂ ȘI PRACTICĂ.
+4. CITĂRI EXACTE: Asigură-te că citezi textele legale, numărul deciziilor, articole din NCPC/NCPP/NCC/NCP, precum și legislația conexă. Folosește limbaj absolut formal și academic.
+5. TIMP REAL: Caută mereu cea mai recentă legislație folosind internetul (ex. decizii recente din Monitorul Oficial sau ÎCCJ publicate în 2024 sau 2025).
 
-Oferă excelență sau nimic.` ;
+Oferă excelență sau nimic. Te adresezi unor profesioniști ai dreptului.`;
 
 // Safety settings - Force BLOCK_NONE to prevent evasive behavior on legal topics
 const LEGAL_SAFETY_SETTINGS = [
@@ -861,10 +862,10 @@ export class JuristService {
       contents: parameters.contents,
       config: {
         systemInstruction: parameters.systemInstruction,
-        temperature: 0.1,
+        temperature: 0.3,
         topP: 0.9,
         topK: 40,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
         tools: parameters.tools
       }
     });
@@ -891,7 +892,7 @@ export class JuristService {
   }
 
   async chatWithAssistant(prompt: string, onChunk?: (chunk: string) => void): Promise<ChatMessage> {
-    if (!this.checkCredits(1)) {
+    if (!this.checkCredits(3)) {
       throw new Error("Fonduri insuficiente.");
     }
     
@@ -926,7 +927,7 @@ export class JuristService {
         }
       }
       
-      await this.consumeCredit(1); 
+      await this.consumeCredit(3); 
       return { role: 'ai', content: fullText || "...", timestamp: new Date(), sources };
     } catch(e: unknown) { 
       const errorMsg = (e as Error)?.message || 'Eroare necunoscută';
@@ -938,7 +939,7 @@ export class JuristService {
   }
 
   async generateStrategy(caseDetails: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(1)) throw new Error("Fonduri insuficiente.");
+    if (!this.checkCredits(5)) throw new Error("Fonduri insuficiente.");
     this._loading.set(true);
     let fullText = "";
     try {
@@ -956,7 +957,7 @@ export class JuristService {
         }
       }
       
-      await this.consumeCredit(1);
+      await this.consumeCredit(5);
       return fullText || "";
     } catch(e: any) { 
       if (fullText.length > 50) return fullText;
@@ -965,7 +966,7 @@ export class JuristService {
   }
 
   async analyzeEvidence(fileBase64: string, mimeType: string, prompt: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(1)) throw new Error("Fonduri insuficiente.");
+    if (!this.checkCredits(5)) throw new Error("Fonduri insuficiente.");
     this._loading.set(true);
     let fullText = "";
     try {
@@ -983,7 +984,7 @@ export class JuristService {
         }
       }
       
-      await this.consumeCredit(1);
+      await this.consumeCredit(5);
       return fullText || "";
     } catch(e: any) { 
       if (fullText.length > 50) return fullText;
@@ -992,13 +993,20 @@ export class JuristService {
   }
 
   async generateEvidenceImage(prompt: string): Promise<string> {
-    // Placeholder - Imagen support variable based on region/version
-    console.log('Solicitare imagine pentru:', prompt);
-    return "https://picsum.photos/seed/legal/800/600";
+    if (!this.checkCredits(5)) throw new Error("Fonduri insuficiente.");
+    this._loading.set(true);
+    try {
+      await this.consumeCredit(5);
+      // Placeholder - Imagen support variable based on region/version
+      console.log('Solicitare imagine pentru:', prompt);
+      return "https://picsum.photos/seed/legal/800/600";
+    } finally {
+      this._loading.set(false);
+    }
   }
 
   async draftDocument(type: string, details: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(1)) throw new Error("Fonduri insuficiente.");
+    if (!this.checkCredits(3)) throw new Error("Fonduri insuficiente.");
     this._loading.set(true);
     let fullText = "";
     try {
@@ -1016,7 +1024,7 @@ export class JuristService {
         }
       }
       
-      await this.consumeCredit(1);
+      await this.consumeCredit(3);
       return fullText || "";
     } catch(e: any) { 
       if (fullText.length > 50) return fullText;
@@ -1025,7 +1033,7 @@ export class JuristService {
   }
 
   async calculateFees(context: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(1)) throw new Error("Fonduri insuficiente.");
+    if (!this.checkCredits(2)) throw new Error("Fonduri insuficiente.");
     this._loading.set(true);
     let fullText = "";
     try {
@@ -1043,7 +1051,7 @@ export class JuristService {
         }
       }
       
-      await this.consumeCredit(1);
+      await this.consumeCredit(2);
       return fullText || "";
     } catch(e: unknown) { 
       if (fullText.length > 20) return fullText;

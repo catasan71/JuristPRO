@@ -9,8 +9,18 @@ import { AuthService } from '../services/auth.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="h-full flex flex-col items-center justify-start p-6 bg-jurist-black overflow-y-auto animate-fadeIn relative">
+    <div class="h-full flex flex-col items-center justify-start p-6 bg-jurist-black overflow-y-auto animate-fadeIn relative scroll-smooth">
       
+      @if (authService.currentUser()?.credits !== undefined && (authService.currentUser()?.credits ?? 0) < 5 && authService.currentUser()?.plan !== 'trial') {
+        <div class="w-full max-w-6xl bg-red-950/40 border border-red-500/30 rounded-2xl p-6 mb-8 mt-4 flex flex-col md:flex-row items-center justify-between animate-slideUp">
+           <div class="text-left mb-4 md:mb-0">
+             <h3 class="text-xl font-bold text-red-400 mb-1 flex items-center gap-2"><span class="text-2xl">⚠️</span> Ați epuizat creditele incluse în abonament</h3>
+             <p class="text-red-200/70 text-sm">Pentru a putea continua să generați documente și strategii, achiziționați un pachet de credite Top-Up.</p>
+           </div>
+           <button (click)="scrollToTopUp()" class="px-6 py-3 bg-red-600/90 text-white font-bold rounded-xl hover:bg-red-500 transition-colors shadow-lg whitespace-nowrap mt-2 md:mt-0">Cumpără Credite Top-Up</button>
+        </div>
+      }
+
       <!-- Subscription Section -->
       <div class="text-center mb-12 mt-8">
         <h2 class="text-4xl font-bold text-white mb-4">Alege Abonamentul <span class="text-jurist-orange">JuristPRO</span></h2>
@@ -65,7 +75,7 @@ import { AuthService } from '../services/auth.service';
       </div>
 
       <!-- Top-Up Section -->
-      <div class="w-full max-w-6xl border-t border-gray-800 pt-16">
+      <div id="topup-section" class="w-full max-w-6xl border-t border-gray-800 pt-16">
         <div class="text-center mb-12">
            <h2 class="text-3xl font-bold text-white mb-4">Reîncărcare Credite <span class="text-purple-500">(Top-Up)</span></h2>
            <p class="text-gray-400 max-w-lg mx-auto">Ai nevoie de mai mult? Adaugă pachete de credite <strong class="text-white">PERMANENTE</strong>. Acestea nu expiră la finalul lunii și se consumă doar după terminarea abonamentului.</p>
@@ -196,6 +206,13 @@ export class PricingComponent {
     fullName: '',
     address: ''
   };
+
+  scrollToTopUp() {
+    const el = document.getElementById('topup-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 
   // Promo Code State
   promoCodeInput = '';
