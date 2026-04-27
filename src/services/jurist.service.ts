@@ -105,7 +105,7 @@ REGULI ABSOLUTE (ÎNCĂLCAREA LOR ESTE O EROARE DE SISTEM):
    - Dacă ești întrebat despre "furt din magazin", oferă încadrarea juridică (Art. 228/229 NCP), elementele constitutive, agravantele, analiza probatorie și jurisprudența relevantă.
 
 2. CALITATE ȘI DEZVOLTARE MAXIMĂ: 
-   - Un răspuns sub 3 paragrafre dense este considerat INSUFICIENT. 
+   - Un răspuns sub 3 paragrafe dense este considerat INSUFICIENT. 
    - Dezvoltă argumentele. Explică "de ce" și "cum". 
    - Folosește terminologie juridică avansată (ex: element material, latură subiectivă, cauze justificative, concurs de infracțiuni).
 
@@ -846,14 +846,15 @@ export class JuristService {
     ai: GoogleGenAI, 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     parameters: any, 
-    primaryModel = 'gemini-2.0-flash', 
-    fallbackModel = 'gemini-1.5-pro',
+    primaryModel = 'gemini-3-flash-preview', 
+    fallbackModel = 'gemini-3.1-pro-preview',
     timeoutMs = 45000
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     const fetchWithTimeout = async (modelName: string) => {
       // In @google/genai (V2 SDK), we use ai.models.generateContentStream directly
       // systemInstruction and tools are part of the request object
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const responsePromise = (ai as any).models.generateContentStream({
         model: modelName,
         ...parameters
@@ -892,21 +893,21 @@ export class JuristService {
       const params = {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         tools: [{ googleSearch: {} }],
-        config: { 
-          systemInstruction: LEGAL_GUARDRAILS,
-          temperature: 0.2, // Slightly higher for more creative/academic development
+        systemInstruction: LEGAL_GUARDRAILS,
+        safetySettings: LEGAL_SAFETY_SETTINGS,
+        generationConfig: { 
+          temperature: 0.2,
           topP: 0.9,
-          topK: 40,
-          safetySettings: LEGAL_SAFETY_SETTINGS
+          topK: 40
         }
       };
 
-      // Încercăm prima dată cu Gemini 2.0 Flash pentru viteză
+      // Încercăm prima dată cu Gemini 3 Flash pentru viteză
       const responseStream = await this.generateContentStreamWithFallback(
         ai, 
         params, 
-        'gemini-2.0-flash', 
-        'gemini-1.5-pro',
+        'gemini-3-flash-preview', 
+        'gemini-3.1-pro-preview',
         45000
       );
 
@@ -984,12 +985,12 @@ export class JuristService {
         
         Fii extrem de detaliat. Oferă avocatului o analiză pe care să o poată prezenta direct clientului sau să o folosească în instanță.` }] }],
         tools: [{ googleSearch: {} }],
-        config: { 
-          systemInstruction: LEGAL_GUARDRAILS, 
+        systemInstruction: LEGAL_GUARDRAILS,
+        safetySettings: LEGAL_SAFETY_SETTINGS,
+        generationConfig: { 
           temperature: 0.1,
           topP: 0.8,
-          topK: 40,
-          safetySettings: LEGAL_SAFETY_SETTINGS
+          topK: 40
         }
       });
       
@@ -1036,12 +1037,12 @@ export class JuristService {
         
         Oferă un raport structurat, clar, cu trimiteri exacte la textul documentului analizat și la lege.` }] }],
         tools: [{ googleSearch: {} }],
-        config: { 
-          systemInstruction: LEGAL_GUARDRAILS, 
+        systemInstruction: LEGAL_GUARDRAILS, 
+        safetySettings: LEGAL_SAFETY_SETTINGS,
+        generationConfig: { 
           temperature: 0.1,
           topP: 0.8,
-          topK: 40,
-          safetySettings: LEGAL_SAFETY_SETTINGS
+          topK: 40
         }
       });
       
@@ -1072,10 +1073,11 @@ export class JuristService {
       const ai = await this.getAiInstance();
       
       // For image generation with Imagen models
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await (ai as any).models.generateImages({
         model: 'imagen-3.0-generate-001',
         prompt: prompt,
-        config: { numberOfImages: 1, outputMimeType: 'image/jpeg' }
+        generationConfig: { numberOfImages: 1, outputMimeType: 'image/jpeg' }
       });
       await this.consumeCredit(5);
       const base64 = response.generatedImages?.[0]?.image?.imageBytes;
@@ -1103,12 +1105,12 @@ export class JuristService {
         4. LIMBAJ: Folosește un limbaj juridic formal, sobru, specific instanțelor din România.
         5. FORMAT: NU folosi formatare Markdown (fără asteriscuri **, fără diez #). Folosește doar text simplu, majuscule pentru titluri și spațieri clare între paragrafe.` }] }],
         tools: [{ googleSearch: {} }],
-        config: { 
-          systemInstruction: LEGAL_GUARDRAILS, 
+        systemInstruction: LEGAL_GUARDRAILS, 
+        safetySettings: LEGAL_SAFETY_SETTINGS,
+        generationConfig: { 
           temperature: 0.1,
           topP: 0.8,
-          topK: 40,
-          safetySettings: LEGAL_SAFETY_SETTINGS
+          topK: 40
         }
       });
       
@@ -1146,12 +1148,12 @@ export class JuristService {
         contents: [{ role: 'user', parts: [{ text: `Calculează taxele de timbru sau onorariile conform contextului: ${context}. 
         VERIFICĂ obligatoriu OUG 80/2013 și orice actualizări recente prin Google Search.` }] }],
         tools: [{ googleSearch: {} }],
-        config: { 
-          systemInstruction: LEGAL_GUARDRAILS, 
+        systemInstruction: LEGAL_GUARDRAILS, 
+        safetySettings: LEGAL_SAFETY_SETTINGS,
+        generationConfig: { 
           temperature: 0.1,
           topP: 0.8,
-          topK: 40,
-          safetySettings: LEGAL_SAFETY_SETTINGS
+          topK: 40
         }
       });
       
