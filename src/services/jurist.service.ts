@@ -854,7 +854,7 @@ export class JuristService {
         systemInstruction: parameters.systemInstruction,
         safetySettings: LEGAL_SAFETY_SETTINGS,
         tools: parameters.tools
-      }, { apiVersion: 'v1beta' });
+      });
 
       const responsePromise = model.generateContentStream({
         contents: parameters.contents,
@@ -881,7 +881,7 @@ export class JuristService {
         throw new Error('Serverul AI este supraîncărcat. Reîncercați în 10 secunde.', { cause: e });
       }
       if (msg.includes('404')) {
-        throw new Error('Eroare tehnică AI (404/v1beta). Problema a fost raportată.', { cause: e });
+        throw new Error('Eroare tehnică AI (404). Backend-ul este momentan indisponibil.', { cause: e });
       }
       if (status === 403 || msg.includes('key')) {
         throw new Error('Cheie API invalidă sau expirată.', { cause: e });
@@ -919,8 +919,9 @@ export class JuristService {
         if (metadata?.groundingChunks) {
           const chunks = metadata.groundingChunks as any[];
           chunks.forEach(c => {
-            if (c.web?.uri && !sources.some(s => s.url === c.web?.uri)) {
-              sources.push({ title: c.web.title || 'Sursă Google', url: c.web.uri });
+            const uri = c.web?.uri;
+            if (uri && !sources.some(s => s.url === uri)) {
+              sources.push({ title: c.web?.title || 'Sursă Google', url: uri });
             }
           });
         }
