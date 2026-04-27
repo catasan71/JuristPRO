@@ -598,7 +598,7 @@ type LandingView = 'home' | 'terms' | 'privacy' | 'cookies' | 'guide';
                                <li class="flex gap-2">✓ Suport Prioritar</li>
                                <li class="flex gap-2">✓ Acces API Beta</li>
                             </ul>
-                            <button (click)="enterApp()" class="w-full py-3 border border-gray-700 rounded-xl text-yellow-500 font-bold hover:bg-gray-800">Contact Sales</button>
+                            <button (click)="enterApp()" class="w-full py-3 border border-gray-700 rounded-xl text-yellow-500 font-bold hover:bg-gray-800">Alege Gold</button>
                          </div>
                       </div>
 

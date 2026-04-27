@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject, effect } from '@angular/core';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { AuthService, UserConsents } from './auth.service';
 import { db } from '../app/firebase';
 import { doc, getDoc, updateDoc, setDoc, collection, getDocs, addDoc, query, where, orderBy, onSnapshot, deleteDoc } from 'firebase/firestore';
@@ -107,11 +107,10 @@ Oferă excelență sau nimic.` ;
 
 // Safety settings - Force BLOCK_NONE to prevent evasive behavior on legal topics
 const LEGAL_SAFETY_SETTINGS = [
-  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-  { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' }
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE }
 ];
 
 @Injectable({
@@ -825,91 +824,78 @@ export class JuristService {
 
   // --- AI FEATURES WITH SAFEGUARDS ---
   
-  private async generateContentStreamWithFallback(
-    ai: GoogleGenerativeAI, 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    parameters: any, 
-    primaryModel = 'gemini-1.5-flash', 
-    fallbackModel = 'gemini-1.5-flash',
-    timeoutMs = 90000
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /**
+   * Apel universal către Gemini 1.5 Flash.
+   * Optimizat pentru latență minimă și stabilitate maximă.
+   */
+  private async _callAi(
+    parameters: {
+      contents: any[],
+      systemInstruction?: string,
+      tools?: any[],
+      generationConfig?: any,
+      timeoutMs?: number
+    }
   ): Promise<any> {
-    const fetchWithTimeout = async (modelName: string) => {
-      const genModel = ai.getGenerativeModel({ 
-        model: modelName,
+    const ai = await this.getAiInstance();
+    const timeoutMs = parameters.timeoutMs || 60000;
+    
+    try {
+      const model = ai.getGenerativeModel({ 
+        model: 'gemini-1.5-flash',
         systemInstruction: parameters.systemInstruction,
-        safetySettings: parameters.safetySettings,
+        safetySettings: LEGAL_SAFETY_SETTINGS,
         tools: parameters.tools
       });
-      
-      const responsePromise = genModel.generateContentStream({
+
+      const responsePromise = model.generateContentStream({
         contents: parameters.contents,
-        generationConfig: parameters.generationConfig
+        generationConfig: parameters.generationConfig || { 
+          temperature: 0.3,
+          topP: 0.9,
+          topK: 40,
+          maxOutputTokens: 2048
+        }
       });
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT_LATENCY: Timp de răspuns depășit (90s).')), timeoutMs)
+        setTimeout(() => reject(new Error('AI_TIMEOUT')), timeoutMs)
       );
       
-      return await Promise.race([responsePromise, timeoutPromise]);
-    };
-
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await fetchWithTimeout(primaryModel) as any;
+      const result = await Promise.race([responsePromise, timeoutPromise]) as any;
       return result;
     } catch (e: any) {
-      console.warn(`Primary model ${primaryModel} failed or timed out:`, e);
+      console.error('Core AI Error:', e);
       
-      // Handle leaked key
-      if (e?.message?.includes('leaked') || (e?.status === 403)) {
-        throw new Error('SEC_ERR_LEAKED_KEY: Cheia API Gemini a fost blocată din motive de securitate (Leaked/Revoked). Administratorul trebuie să regenereze cheia.');
+      if (e?.message?.includes('AI_TIMEOUT')) {
+        throw new Error('Serverul AI este supraîncărcat. Reîncercați în 10 secunde.', { cause: e });
       }
-
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = await fetchWithTimeout(fallbackModel) as any;
-        return result;
-      } catch (e2: any) {
-        if (e2?.message?.includes('leaked')) {
-          throw new Error('SEC_ERR_LEAKED_KEY: Cheia API a fost revocată de Google (posibil leak).');
-        }
-        throw e2;
+      if (e?.message?.includes('404')) {
+        throw new Error('Eroare de rutare AI (404). Contactați echipa tehnică.', { cause: e });
       }
+      if (e?.status === 403 || e?.message?.includes('key')) {
+        throw new Error('Cheie API invalidă sau expirată.', { cause: e });
+      }
+      
+      throw new Error(`Eroare AI: ${e.message || 'Sistem indisponibil'}`, { cause: e });
     }
   }
 
   async chatWithAssistant(prompt: string, onChunk?: (chunk: string) => void): Promise<ChatMessage> {
-    if (!this.checkCredits(3)) {
-      return { role: 'ai', content: "Eroare: Credite insuficiente. Vă rugăm să vă reîncărcați contul.", timestamp: new Date() };
+    if (!this.checkCredits(1)) {
+      throw new Error("Fonduri insuficiente.");
     }
+    
     this._loading.set(true);
     let fullText = "";
-    const extractedSources: ChatSource[] = [];
+    const sources: ChatSource[] = [];
+    
     try {
-      const ai = await this.getAiInstance();
-      
-      // Folosim sistemul de fallback și pentru chat pentru stabilitate maximă
-      const params = {
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        tools: [{ googleSearch: {} }],
+      const result = await this._callAi({
         systemInstruction: LEGAL_GUARDRAILS,
-        safetySettings: LEGAL_SAFETY_SETTINGS,
-        generationConfig: { 
-          temperature: 0.2,
-          topP: 0.9,
-          topK: 40
-        }
-      };
-
-      // Încercăm prima dată cu Gemini 1.5 Flash pentru viteză și stabilitate maximă
-      const result = await this.generateContentStreamWithFallback(
-        ai, 
-        params, 
-        'gemini-1.5-flash', 
-        'gemini-1.5-flash',
-        90000
-      );
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        tools: [{ googleSearch: {} }]
+      });
 
       for await (const chunk of result.stream) {
         const text = chunk.text();
@@ -918,80 +904,37 @@ export class JuristService {
           if (onChunk) onChunk(fullText);
         }
 
-        // Extract grounding sources
-        const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
-        if (groundingMetadata && groundingMetadata.groundingChunks) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const chunksData = groundingMetadata.groundingChunks as any[];
-          const newSources = chunksData
-            .filter((c) => c.web && c.web.uri)
-            .map((c) => ({ 
-              title: c.web?.title || 'Sursă', 
-              url: c.web?.uri as string 
-            }));
-            
-          for (const src of newSources) {
-            if (!extractedSources.some(s => s.url === src.url)) {
-              extractedSources.push(src);
+        // Extracție surse dacă există
+        const metadata = chunk.candidates?.[0]?.groundingMetadata;
+        if (metadata?.groundingChunks) {
+          const chunks = metadata.groundingChunks as any[];
+          chunks.forEach(c => {
+            if (c.web?.uri && !sources.some(s => s.url === c.web.uri)) {
+              sources.push({ title: c.web.title || 'Sursă Google', url: c.web.uri });
             }
-          }
+          });
         }
       }
       
-      await this.consumeCredit(3); 
-
-      return { role: 'ai', content: fullText || "...", timestamp: new Date(), sources: extractedSources };
-    } catch(e: unknown) { 
-      console.error("AI Error:", e);
-      let errorMessage: string;
-      
-      if (e instanceof Error) {
-        errorMessage = e.message;
-      } else if (typeof e === 'object' && e !== null) {
-        errorMessage = JSON.stringify(e);
-      } else {
-        errorMessage = String(e);
-      }
-      
-      if (errorMessage.includes('Incomplete JSON segment') || errorMessage.includes('TIMEOUT_CHUNK') || errorMessage.includes('TIMEOUT_LATENCY')) {
-        if (fullText.length > 0) {
-          return { role: 'ai', content: fullText, timestamp: new Date(), sources: extractedSources };
-        }
-      }
-      
-      this.notificationService.error(`Eroare AI: ${errorMessage}`);
-      return { role: 'ai', content: `Eroare de comunicare cu inteligența artificială. Te rugăm să încerci din nou peste câteva momente.`, timestamp: new Date() }; 
-    } 
-    finally { this._loading.set(false); }
+      await this.consumeCredit(1); 
+      return { role: 'ai', content: fullText || "...", timestamp: new Date(), sources };
+    } catch(e: any) { 
+      this.notificationService.error(e.message);
+      throw e;
+    } finally {
+      this._loading.set(false);
+    }
   }
 
   async generateStrategy(caseDetails: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(5)) return "Eroare: Credite insuficiente. Vă rugăm să vă reîncărcați contul.";
+    if (!this.checkCredits(1)) throw new Error("Fonduri insuficiente.");
     this._loading.set(true);
     let fullText = "";
     try {
-      const ai = await this.getAiInstance();
-      const result = await this.generateContentStreamWithFallback(ai, {
-        contents: [{ role: 'user', parts: [{ text: `Analizează detaliat următoarea speță și elaborează o strategie juridică exhaustivă pentru avocat: ${caseDetails}. 
-        
-        STRUCTURA OBLIGATORIE A STRATEGIEI:
-        1. REZUMATUL SITUAȚIEI DE FAPT ȘI DE DREPT: O sinteză clară a problemei juridice.
-        2. ÎNCADRAREA JURIDICĂ ȘI TEMEIURI LEGALE: Identifică exact articolele de lege aplicabile (material și procedural). Explică de ce se aplică. Verifică validitatea lor prin Google Search.
-        3. OPȚIUNI DE ACȚIUNE (CĂI DE ATAC / PROCEDURI): Prezintă toate variantele legale pe care le are clientul (ex: acțiune în instanță, plângere prealabilă, mediere, negociere).
-        4. ARGUMENTE PRO ȘI CONTRA (SWOT JURIDIC): Punctele forte ale cazului nostru și posibilele apărări ale părții adverse.
-        5. RISCURI PROCESUALE ȘI COSTURI ESTIMATE: Analizează șansele de câștig, riscul de a pierde, taxele de timbru posibile și durata estimată.
-        6. PROBATORIUL NECESAR: Ce dovezi trebuie strânse (înscrisuri, martori, expertize, interogatorii).
-        7. RECOMANDAREA FINALĂ: Care este cel mai bun curs de acțiune și care sunt primii 3 pași imediați pe care trebuie să îi facă avocatul.
-        
-        Fii extrem de detaliat. Oferă avocatului o analiză pe care să o poată prezenta direct clientului sau să o folosească în instanță.` }] }],
-        tools: [{ googleSearch: {} }],
+      const result = await this._callAi({
         systemInstruction: LEGAL_GUARDRAILS,
-        safetySettings: LEGAL_SAFETY_SETTINGS,
-        generationConfig: { 
-          temperature: 0.1,
-          topP: 0.8,
-          topK: 40
-        }
+        contents: [{ role: 'user', parts: [{ text: `Analizează speța: ${caseDetails}. Oferă o strategie juridică exhaustivă (Rezumat, Încadrare, Opțiuni, Riscuri, Probatoriu, Recomandări).` }] }],
+        tools: [{ googleSearch: {} }]
       });
       
       for await (const chunk of result.stream) {
@@ -1002,48 +945,23 @@ export class JuristService {
         }
       }
       
-      await this.consumeCredit(5);
+      await this.consumeCredit(1);
       return fullText || "";
-    } catch(e: unknown) { 
-      console.error("AI Error:", e);
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      if (errorMessage.includes('Incomplete JSON segment') || errorMessage.includes('TIMEOUT_CHUNK') || errorMessage.includes('TIMEOUT_LATENCY')) {
-        if (fullText.length > 0) {
-          return fullText;
-        } else {
-          return "Eroare AI: Conexiunea a fost întreruptă din cauza latenței. Vă rugăm să încercați din nou.";
-        }
-      }
-      return `Eroare AI: ${errorMessage}. (Te rugăm să ne trimiți o captură de ecran cu această eroare pentru a o investiga). Nu v-au fost retrase credite.`;
+    } catch(e: any) { 
+      if (fullText.length > 50) return fullText;
+      throw e;
     } finally { this._loading.set(false); }
   }
 
   async analyzeEvidence(fileBase64: string, mimeType: string, prompt: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(5)) return "Eroare: Credite insuficiente. Vă rugăm să vă reîncărcați contul.";
+    if (!this.checkCredits(1)) throw new Error("Fonduri insuficiente.");
     this._loading.set(true);
     let fullText = "";
     try {
-      const ai = await this.getAiInstance();
-      const result = await this.generateContentStreamWithFallback(ai, {
-        contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: fileBase64 } }, { text: `Efectuează un audit juridic și o analiză detaliată a probatoriului atașat.
-        Context/Cerere utilizator: ${prompt}.
-        
-        CERINȚE PENTRU AUDIT:
-        1. ANALIZA FORMALĂ: Verifică dacă documentul îndeplinește condițiile de validitate (formă, semnături, termene, competență).
-        2. ANALIZA PE FOND: Extrage ideile principale, obligațiile părților, clauzele abuzive sau punctele vulnerabile.
-        3. CONFORMITATE LEGALĂ: Raportează conținutul documentului la legislația actuală. Există încălcări ale legii?
-        4. RISCURI IDENTIFICATE: Ce riscuri juridice, financiare sau de business reies din acest document?
-        5. RECOMANDĂRI DE REMEDIERE / ACȚIUNE: Cum poate fi îmbunătățită situația clientului? Ce acțiuni legale se impun (ex: notificare, reziliere, acțiune în anulare)?
-        
-        Oferă un raport structurat, clar, cu trimiteri exacte la textul documentului analizat și la lege.` }] }],
-        tools: [{ googleSearch: {} }],
-        systemInstruction: LEGAL_GUARDRAILS, 
-        safetySettings: LEGAL_SAFETY_SETTINGS,
-        generationConfig: { 
-          temperature: 0.1,
-          topP: 0.8,
-          topK: 40
-        }
+      const result = await this._callAi({
+        systemInstruction: LEGAL_GUARDRAILS,
+        contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: fileBase64 } }, { text: `Audit juridic: ${prompt}` }] }],
+        tools: [{ googleSearch: {} }]
       });
       
       for await (const chunk of result.stream) {
@@ -1054,58 +972,29 @@ export class JuristService {
         }
       }
       
-      await this.consumeCredit(5);
+      await this.consumeCredit(1);
       return fullText || "";
-    } catch(e: unknown) { 
-        console.error("AI Error:", e);
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        if ((errorMessage.includes('Incomplete JSON segment') || errorMessage.includes('TIMEOUT_CHUNK') || errorMessage.includes('TIMEOUT_LATENCY')) && fullText.length > 0) {
-          return fullText;
-        }
-        return `Eroare AI: ${errorMessage}. (Te rugăm să ne trimiți o captură de ecran cu această eroare pentru a o investiga). Nu v-au fost retrase credite.`; 
+    } catch(e: any) { 
+      if (fullText.length > 50) return fullText;
+      throw e;
     } finally { this._loading.set(false); }
   }
 
   async generateEvidenceImage(prompt: string): Promise<string> {
-    if (!this.checkCredits(5)) return "Eroare: Credite insuficiente. Vă rugăm să vă reîncărcați contul.";
-    this._loading.set(true);
-    try {
-      const ai = await this.getAiInstance();
-      
-      // Note: Imagen is NOT standard in @google/genai Node SDK currently.
-      // We will skip real generation here and return a high-quality placeholder or alert the user.
-      console.warn("Imagen generation is not supported in the current SDK configuration.");
-      return "https://picsum.photos/seed/legal/800/600";
-    } catch(e: unknown) { 
-      console.error("AI Image Generation failed:", e);
-      return ""; 
-    } finally { this._loading.set(false); }
+    // Placeholder - Imagen support variable based on region/version
+    console.log('Solicitare imagine pentru:', prompt);
+    return "https://picsum.photos/seed/legal/800/600";
   }
 
   async draftDocument(type: string, details: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(3)) return "Eroare: Credite insuficiente. Vă rugăm să vă reîncărcați contul.";
+    if (!this.checkCredits(1)) throw new Error("Fonduri insuficiente.");
     this._loading.set(true);
     let fullText = "";
     try {
-      const ai = await this.getAiInstance();
-      const result = await this.generateContentStreamWithFallback(ai, {
-        contents: [{ role: 'user', parts: [{ text: `Redactează un document juridic complet și profesional de tipul: ${type}. 
-        Detalii furnizate de utilizator: ${details}. 
-        
-        CERINȚE OBLIGATORII DE REDACTARE:
-        1. STRUCTURĂ COMPLETĂ: Include antetul instanței/autorității (dacă este cazul), datele părților (lasă spații libere de tipul [Nume/Denumire], [CNP/CUI], [Adresă] dacă nu sunt furnizate), obiectul clar, motivele de fapt, motivele de drept, probele solicitate și semnătura.
-        2. ARGUMENTARE JURIDICĂ: Dezvoltă motivele de fapt și de drept într-un mod logic, persuasiv și exhaustiv. Nu te rezuma la fraze scurte. Construiește argumente solide ca un avocat pledant cu experiență.
-        3. TEMEI LEGAL ACTUALIZAT: Identifică și citează cu maximă precizie articolele de lege aplicabile (Codul Civil, Codul de Procedură Civilă, Codul Penal, legi speciale etc.). Verifică valabilitatea lor.
-        4. LIMBAJ: Folosește un limbaj juridic formal, sobru, specific instanțelor din România.
-        5. FORMAT: NU folosi formatare Markdown (fără asteriscuri **, fără diez #). Folosește doar text simplu, majuscule pentru titluri și spațieri clare între paragrafe.` }] }],
-        tools: [{ googleSearch: {} }],
-        systemInstruction: LEGAL_GUARDRAILS, 
-        safetySettings: LEGAL_SAFETY_SETTINGS,
-        generationConfig: { 
-          temperature: 0.1,
-          topP: 0.8,
-          topK: 40
-        }
+      const result = await this._callAi({
+        systemInstruction: LEGAL_GUARDRAILS,
+        contents: [{ role: 'user', parts: [{ text: `Redactează profesional: ${type}. Detalii: ${details}. Fără Markdown, limbaj formal instanță.` }] }],
+        tools: [{ googleSearch: {} }]
       });
       
       for await (const chunk of result.stream) {
@@ -1116,39 +1005,23 @@ export class JuristService {
         }
       }
       
-      await this.consumeCredit(3);
+      await this.consumeCredit(1);
       return fullText || "";
-    } catch(e: unknown) { 
-        console.error("AI Error:", e);
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        if (errorMessage.includes('Incomplete JSON segment') || errorMessage.includes('TIMEOUT_CHUNK') || errorMessage.includes('TIMEOUT_LATENCY')) {
-          if (fullText.length > 0) {
-            return fullText;
-          } else {
-            return "Eroare AI: Conexiunea a fost întreruptă din cauza latenței. Vă rugăm să încercați din nou.";
-          }
-        }
-        return `Eroare AI: ${errorMessage}. (Te rugăm să ne trimiți o captură de ecran cu această eroare pentru a o investiga). Nu v-au fost retrase credite.`; 
+    } catch(e: any) { 
+      if (fullText.length > 50) return fullText;
+      throw e;
     } finally { this._loading.set(false); }
   }
 
   async calculateFees(context: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(2)) return "Eroare: Credite insuficiente. Vă rugăm să vă reîncărcați contul.";
+    if (!this.checkCredits(1)) throw new Error("Fonduri insuficiente.");
     this._loading.set(true);
     let fullText = "";
     try {
-      const ai = await this.getAiInstance();
-      const result = await this.generateContentStreamWithFallback(ai, {
-        contents: [{ role: 'user', parts: [{ text: `Calculează taxele de timbru sau onorariile conform contextului: ${context}. 
-        VERIFICĂ obligatoriu OUG 80/2013 și orice actualizări recente prin Google Search.` }] }],
-        tools: [{ googleSearch: {} }],
-        systemInstruction: LEGAL_GUARDRAILS, 
-        safetySettings: LEGAL_SAFETY_SETTINGS,
-        generationConfig: { 
-          temperature: 0.1,
-          topP: 0.8,
-          topK: 40
-        }
+      const result = await this._callAi({
+        systemInstruction: LEGAL_GUARDRAILS,
+        contents: [{ role: 'user', parts: [{ text: `Calculează taxe/onorarii (OUG 80/2013): ${context}` }] }],
+        tools: [{ googleSearch: {} }]
       });
       
       for await (const chunk of result.stream) {
@@ -1159,19 +1032,11 @@ export class JuristService {
         }
       }
       
-      await this.consumeCredit(2);
+      await this.consumeCredit(1);
       return fullText || "";
-    } catch(e: unknown) { 
-        console.error("AI Error:", e);
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        if (errorMessage.includes('Incomplete JSON segment') || errorMessage.includes('TIMEOUT_CHUNK') || errorMessage.includes('TIMEOUT_LATENCY')) {
-          if (fullText.length > 0) {
-            return fullText;
-          } else {
-            return "Eroare AI: Conexiunea a fost întreruptă din cauza latenței. Vă rugăm să încercați din nou.";
-          }
-        }
-        return `Eroare AI: ${errorMessage}. (Te rugăm să ne trimiți o captură de ecran cu această eroare pentru a o investiga). Nu v-au fost retrase credite.`; 
+    } catch(e: any) { 
+      if (fullText.length > 20) return fullText;
+      throw e;
     } finally { this._loading.set(false); }
   }
 
