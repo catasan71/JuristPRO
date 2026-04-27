@@ -1,8 +1,9 @@
 // Force GitHub sync update - 2026-04-11
+import process from 'process';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import fs from 'fs';
 import Stripe from 'stripe';
 import dotenv from 'dotenv';
