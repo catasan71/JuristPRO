@@ -1,10 +1,24 @@
 import { Injectable, signal, computed, inject, effect } from '@angular/core';
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerateContentStreamResult } from '@google/generative-ai';
 import { AuthService, UserConsents } from './auth.service';
 import { db } from '../app/firebase';
 import { doc, getDoc, updateDoc, setDoc, collection, getDocs, addDoc, query, where, orderBy, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { environment } from '../environments/environment';
 import { NotificationService } from './notification.service';
+
+/**
+ * Interfețe pentru stabilitate și tipizare
+ */
+export interface AiCallParameters {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  contents: any[];
+  systemInstruction?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tools?: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  generationConfig?: any;
+  timeoutMs?: number;
+}
 
 export type ModuleType = 'landing' | 'auth' | 'payment' | 'admin-dashboard' | 'dashboard' | 'assistant' | 'strategy' | 'audit' | 'drafting' | 'fees' | 'calendar' | 'profile' | 'pricing' | 'guide';
 export type PlanType = 'trial' | 'expert' | 'gold';
@@ -829,16 +843,10 @@ export class JuristService {
    * Optimizat pentru latență minimă și stabilitate maximă.
    */
   private async _callAi(
-    parameters: {
-      contents: any[],
-      systemInstruction?: string,
-      tools?: any[],
-      generationConfig?: any,
-      timeoutMs?: number
-    }
-  ): Promise<any> {
+    parameters: AiCallParameters
+  ): Promise<GenerateContentStreamResult> {
     const ai = await this.getAiInstance();
-    const timeoutMs = parameters.timeoutMs || 60000;
+    const timeoutMs = parameters.timeoutMs || 90000;
     
     try {
       const model = ai.getGenerativeModel({ 
@@ -846,38 +854,40 @@ export class JuristService {
         systemInstruction: parameters.systemInstruction,
         safetySettings: LEGAL_SAFETY_SETTINGS,
         tools: parameters.tools
-      });
+      }, { apiVersion: 'v1beta' });
 
       const responsePromise = model.generateContentStream({
         contents: parameters.contents,
         generationConfig: parameters.generationConfig || { 
-          temperature: 0.3,
+          temperature: 0.1,
           topP: 0.9,
           topK: 40,
           maxOutputTokens: 2048
         }
       });
       
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise<never>((_, reject) => 
         setTimeout(() => reject(new Error('AI_TIMEOUT')), timeoutMs)
       );
       
-      const result = await Promise.race([responsePromise, timeoutPromise]) as any;
+      const result = await Promise.race([responsePromise, timeoutPromise]);
       return result;
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Core AI Error:', e);
+      const msg = (e as { message?: string })?.message || '';
+      const status = (e as { status?: number })?.status;
       
-      if (e?.message?.includes('AI_TIMEOUT')) {
+      if (msg.includes('AI_TIMEOUT')) {
         throw new Error('Serverul AI este supraîncărcat. Reîncercați în 10 secunde.', { cause: e });
       }
-      if (e?.message?.includes('404')) {
-        throw new Error('Eroare de rutare AI (404). Contactați echipa tehnică.', { cause: e });
+      if (msg.includes('404')) {
+        throw new Error('Eroare tehnică AI (404/v1beta). Problema a fost raportată.', { cause: e });
       }
-      if (e?.status === 403 || e?.message?.includes('key')) {
+      if (status === 403 || msg.includes('key')) {
         throw new Error('Cheie API invalidă sau expirată.', { cause: e });
       }
       
-      throw new Error(`Eroare AI: ${e.message || 'Sistem indisponibil'}`, { cause: e });
+      throw new Error(`Eroare AI: ${msg || 'Sistem indisponibil'}`, { cause: e });
     }
   }
 
@@ -909,7 +919,7 @@ export class JuristService {
         if (metadata?.groundingChunks) {
           const chunks = metadata.groundingChunks as any[];
           chunks.forEach(c => {
-            if (c.web?.uri && !sources.some(s => s.url === c.web.uri)) {
+            if (c.web?.uri && !sources.some(s => s.url === c.web?.uri)) {
               sources.push({ title: c.web.title || 'Sursă Google', url: c.web.uri });
             }
           });
@@ -918,8 +928,9 @@ export class JuristService {
       
       await this.consumeCredit(1); 
       return { role: 'ai', content: fullText || "...", timestamp: new Date(), sources };
-    } catch(e: any) { 
-      this.notificationService.error(e.message);
+    } catch(e: unknown) { 
+      const errorMsg = (e as Error)?.message || 'Eroare necunoscută';
+      this.notificationService.error(errorMsg);
       throw e;
     } finally {
       this._loading.set(false);
@@ -1034,7 +1045,7 @@ export class JuristService {
       
       await this.consumeCredit(1);
       return fullText || "";
-    } catch(e: any) { 
+    } catch(e: unknown) { 
       if (fullText.length > 20) return fullText;
       throw e;
     } finally { this._loading.set(false); }

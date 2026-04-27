@@ -185,16 +185,17 @@ export class AssistantComponent {
         return newMsgs;
       });
       this.scrollToBottom();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Chat error:', err);
       let errorDisplay = 'Eroare de comunicare.';
+      const msg = (err as { message?: string })?.message || '';
       
-      if (err?.message?.includes('SEC_ERR_LEAKED_KEY')) {
+      if (msg.includes('SEC_ERR_LEAKED_KEY')) {
         errorDisplay = 'EROARE CRITICĂ: Cheia API Gemini a fost blocată de Google (Leaked). Administratorul trebuie să regenereze cheia din setări.';
-      } else if (err?.message?.includes('TIMEOUT_LATENCY')) {
+      } else if (msg.includes('TIMEOUT_LATENCY')) {
         errorDisplay = 'TIMEOUT: Serverul AI este prea ocupat sau speța este prea complexă. Vă rugăm să încercați din nou.';
       } else {
-        errorDisplay = `Eroare AI: ${err?.message || 'Nu s-a putut obține un răspuns.'}`;
+        errorDisplay = `Eroare AI: ${msg || 'Nu s-a putut obține un răspuns.'}`;
       }
       
       this.messages.update(msgs => {

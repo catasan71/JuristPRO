@@ -60,7 +60,7 @@ import { AuthService } from '../services/auth.service';
             <li class="flex items-center text-sm text-gray-300"><span class="text-yellow-500 mr-2">✓</span> Formular Contact Expert</li>
             <li class="flex items-center text-sm text-gray-300"><span class="text-yellow-500 mr-2">✓</span> Suport Prioritar</li>
           </ul>
-          <button (click)="selectPlan('gold')" class="w-full py-3 rounded-xl border border-yellow-600 text-yellow-500 hover:bg-yellow-900/20 transition-colors">Activează Gold</button>
+          <button (click)="selectPlan('gold')" class="w-full py-3 rounded-xl border border-yellow-600 text-yellow-500 hover:bg-yellow-900/20 transition-colors">Alege Gold</button>
         </div>
       </div>
 
