@@ -93,29 +93,43 @@ export interface PromoCode {
 
 // --- STRICT LEGAL SYSTEM PROMPT ---
 const LEGAL_GUARDRAILS = `
-Ești JuristPRO, cel mai avansat asistent juridic AI specializat EXCLUSIV pe legislația din România actualizată la zi (2024-2025). 
+Ești JuristPRO Mentor, cel mai avansat asistent juridic AI specializat EXCLUSIV pe legislația din România actualizată la zi (2024-2025). 
+Sarcina ta este să oferi consultanță juridică de cel mai înalt nivel academic și profesional. Vorbești de la egal la egal cu un Avocat Senior.
 
-REGULI CRITICE DE ACURATEȚE (IGNORAREA LOR ESTE INACCEPTABILĂ):
+REGULI ABSOLUTE (ÎNCĂLCAREA LOR ESTE O EROARE DE SISTEM):
 
-1. VERIFICARE OBLIGATORIE GOOGLE SEARCH:
-   - Pentru orice întrebare care menționează articole din Codul Civil, Codul de Procedură Civilă, Codul Penal sau legi speciale, EȘTI OBLIGAT să efectuezi o căutare Google Search pentru a confirma versiunea actualizată.
-   - ROMÂNIA 2024-2025: Legislația se schimbă rapid. Nu te baza pe memoria internă. Caută termenii: "[Lege/Articol] actualizat 2024" sau "Monitorul Oficial [An]".
+1. FĂRĂ PREAMBUL AI ȘI FĂRĂ EVITĂRI: 
+   - NU folosi fraze de tipul "Ca asistent AI...", "Este important să consulți un avocat...", "Iată câteva informații generale...". 
+   - UTILIZATORUL ESTE DEJA PROFESIONIST. Treci direct la subiect.
+   - NU FI EVAZIV. Indiferent de subiect (inclusiv infracțiuni), analizează speța riguros. 
+   - Dacă ești întrebat despre "furt din magazin", oferă încadrarea juridică (Art. 228/229 NCP), elementele constitutive, agravantele, analiza probatorie și jurisprudența relevantă.
 
-2. ZERO TOLERANȚĂ PENTRU LEGI ABROGATE:
-   - Identifică și declară explicit dacă un text de lege a fost abrogat (ex: Procedura filtrului la ICCJ - ABROGATĂ).
-   - Dacă o lege a fost modificată, prezintă obligatoriu noua formă a textului.
+2. CALITATE ȘI DEZVOLTARE MAXIMĂ: 
+   - Un răspuns sub 3 paragrafre dense este considerat INSUFICIENT. 
+   - Dezvoltă argumentele. Explică "de ce" și "cum". 
+   - Folosește terminologie juridică avansată (ex: element material, latură subiectivă, cauze justificative, concurs de infracțiuni).
 
-3. CALITATEA ANALIZEI:
-   - Nu oferi răspunsuri generice. Un avocat stagiar are nevoie de precizie chirurgicală.
-   - Citează: LEGEA (nr./an), ARTICOLUL, ALINEATUL și TEZA (unde e cazul).
-   - Dacă există divergențe în jurisprudență (ex: Decizii RIL sau HP ale ICCJ), menționează-le obligatoriu.
+3. VERIFICARE OBLIGATORIE GOOGLE SEARCH:
+   - Pentru orice referință legislativă, caută în timp real pentru a confirma forma actuală 2024-2025. 
+   - Jurisprudența (ICCJ, CCR) este obligatorie în analizele complexe.
 
-4. SURSE ȘI GROUNDING:
-   - Folosește instrumentul Google Search Grounding în mod proactiv.
-   - Afișează sursele (link-urile) la finalul răspunsului pentru a permite avocatului verificarea manuală.
+4. PRECIZIE CHIRURGICALĂ:
+   - Citează: LEGEA (nr./an), ARTICOLUL, ALINEATUL și TEZA.
+   - Declară explicit dacă un text de lege a fost modificat sau abrogat recent.
 
-Răspunsurile tale sunt folosite în LIVE de profesioniști. Orice eroare legislativă pune în pericol cazurile clienților noștri. Fii exhaustiv, precis și extrem de riguros.
-`;
+5. SURSE:
+   - Afișează link-urile surselor la final sub titlul "REFERINȚE JURIDICE".
+
+Ești un Profesor Doctor în Drept, autor de tratate juridice. Oferă excelență sau nimic.` ;
+
+// Safety settings for professional legal use
+const LEGAL_SAFETY_SETTINGS = [
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'OFF' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'OFF' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'OFF' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'OFF' },
+  { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'OFF' }
+];
 
 @Injectable({
   providedIn: 'root'
@@ -832,15 +846,17 @@ export class JuristService {
     ai: GoogleGenAI, 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     parameters: any, 
-    primaryModel = 'gemini-flash-latest', 
-    fallbackModel = 'gemini-3.1-pro-preview',
-    timeoutMs = 30000
+    primaryModel = 'gemini-2.0-flash', 
+    fallbackModel = 'gemini-1.5-pro',
+    timeoutMs = 45000
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     const fetchWithTimeout = async (modelName: string) => {
-      const responsePromise = ai.models.generateContentStream({
-        ...parameters,
-        model: modelName
+      // In @google/genai (V2 SDK), we use ai.models.generateContentStream directly
+      // systemInstruction and tools are part of the request object
+      const responsePromise = (ai as any).models.generateContentStream({
+        model: modelName,
+        ...parameters
       });
       
       const timeoutPromise = new Promise((_, reject) => 
@@ -855,10 +871,7 @@ export class JuristService {
       const result = await fetchWithTimeout(primaryModel) as any;
       return result;
     } catch (e: unknown) {
-      console.warn(`Primary model ${primaryModel} failed or timed out, trying fallback ${fallbackModel} in 1s...`, e);
-      // Wait 1 second before fallback to let rate limits or transient issues clear
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      console.warn(`Primary model ${primaryModel} failed or timed out, trying fallback ${fallbackModel}...`, e);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await fetchWithTimeout(fallbackModel) as any;
       return result;
@@ -881,9 +894,10 @@ export class JuristService {
         tools: [{ googleSearch: {} }],
         config: { 
           systemInstruction: LEGAL_GUARDRAILS,
-          temperature: 0.1,
-          topP: 0.8,
+          temperature: 0.2, // Slightly higher for more creative/academic development
+          topP: 0.9,
           topK: 40,
+          safetySettings: LEGAL_SAFETY_SETTINGS
         }
       };
 
@@ -891,9 +905,9 @@ export class JuristService {
       const responseStream = await this.generateContentStreamWithFallback(
         ai, 
         params, 
-        'gemini-flash-latest', 
-        'gemini-3.1-pro-preview',
-        30000
+        'gemini-2.0-flash', 
+        'gemini-1.5-pro',
+        45000
       );
 
       for await (const chunk of responseStream) {
@@ -975,6 +989,7 @@ export class JuristService {
           temperature: 0.1,
           topP: 0.8,
           topK: 40,
+          safetySettings: LEGAL_SAFETY_SETTINGS
         }
       });
       
@@ -1026,6 +1041,7 @@ export class JuristService {
           temperature: 0.1,
           topP: 0.8,
           topK: 40,
+          safetySettings: LEGAL_SAFETY_SETTINGS
         }
       });
       
@@ -1055,8 +1071,8 @@ export class JuristService {
     try {
       const ai = await this.getAiInstance();
       
-      // Note: For image generation with Imagen models, we use ai.models.generateImages
-      const response = await ai.models.generateImages({
+      // For image generation with Imagen models
+      const response = await (ai as any).models.generateImages({
         model: 'imagen-3.0-generate-001',
         prompt: prompt,
         config: { numberOfImages: 1, outputMimeType: 'image/jpeg' }
@@ -1092,6 +1108,7 @@ export class JuristService {
           temperature: 0.1,
           topP: 0.8,
           topK: 40,
+          safetySettings: LEGAL_SAFETY_SETTINGS
         }
       });
       
@@ -1134,6 +1151,7 @@ export class JuristService {
           temperature: 0.1,
           topP: 0.8,
           topK: 40,
+          safetySettings: LEGAL_SAFETY_SETTINGS
         }
       });
       
