@@ -1,0 +1,8 @@
+{
+  "name": "JuristPRO",
+  "description": "Platformă SaaS LegalTech de elită pentru asistență juridică avansată, strategie și redactare documente.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

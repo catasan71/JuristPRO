@@ -1,0 +1,10 @@
+export const firebaseConfig = {
+  "projectId": "juristpro",
+  "appId": "1:85661414526:web:c492035aa2a3615980d42f",
+  "apiKey": "AIzaSyDLAFEoI0Oaa9bOV2i2j59p0G7YH4DuXkc",
+  "authDomain": "juristpro.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-d94006f7-42eb-47b3-85fc-452d570e95a4",
+  "storageBucket": "juristpro.firebasestorage.app",
+  "messagingSenderId": "85661414526",
+  "measurementId": ""
+};
