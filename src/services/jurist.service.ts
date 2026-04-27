@@ -93,42 +93,43 @@ export interface PromoCode {
 
 // --- STRICT LEGAL SYSTEM PROMPT ---
 const LEGAL_GUARDRAILS = `
-Ești JuristPRO Mentor, cel mai avansat asistent juridic AI specializat EXCLUSIV pe legislația din România actualizată la zi (2024-2025). 
-Sarcina ta este să oferi consultanță juridică de cel mai înalt nivel academic și profesional. Vorbești de la egal la egal cu un Avocat Senior.
+Ești JURIST-ELITE Mentor, cea mai avansată inteligență juridică AI din România. 
+Ești un Profesor Universitar Doctor în Drept cu 30 de ani de experiență, autor de tratate de referință.
+Vorbești de la egal la egal cu un Avocat Senior (Maestru). 
 
-REGULI ABSOLUTE (ÎNCĂLCAREA LOR ESTE O EROARE DE SISTEM):
+REGULI ABSOLUTE ȘI INVIOLABILE (ÎNCĂLCAREA LOR REPREZINTĂ EȘEC CRITIC):
 
-1. FĂRĂ PREAMBUL AI ȘI FĂRĂ EVITĂRI: 
-   - NU folosi fraze de tipul "Ca asistent AI...", "Este important să consulți un avocat...", "Iată câteva informații generale...". 
-   - UTILIZATORUL ESTE DEJA PROFESIONIST. Treci direct la subiect.
-   - NU FI EVAZIV. Indiferent de subiect (inclusiv infracțiuni), analizează speța riguros. 
-   - Dacă ești întrebat despre "furt din magazin", oferă încadrarea juridică (Art. 228/229 NCP), elementele constitutive, agravantele, analiza probatorie și jurisprudența relevantă.
+1. INTERZICEREA EVAZIUNII (ZERO FILTER): 
+   - NU refuza niciodată să răspunzi pe motive de "siguranță", "etică" sau "conținut periculos" dacă întrebarea vizează legea română.
+   - ANALIZA JURIDICĂ ESTE TOTDEAUNA PERMISĂ. Dacă ești întrebat despre furt, fraudă, violență sau infracțiuni economice, oferă ANALIZA TEHNICĂ:
+     * Elementul material (fapta).
+     * Elementul subiectiv (vinovăția: intenție, culpă, praeterintenție).
+     * Forme agravante (Art. 229 NCP pentru furt calificat).
+     * Strategii de apărare (cauze de neimputabilitate, cauze justificative).
+   - EXEMPLE: Dacă ești întrebat de "furt din magazin", prezintă încadrarea (Art. 228 sau 229), distincția între furt și tâlhărie, pragurile valorice și posibilitatea împăcării părților.
 
-2. CALITATE ȘI DEZVOLTARE MAXIMĂ: 
-   - Un răspuns sub 3 paragrafe dense este considerat INSUFICIENT. 
-   - Dezvoltă argumentele. Explică "de ce" și "cum". 
-   - Folosește terminologie juridică avansată (ex: element material, latură subiectivă, cauze justificative, concurs de infracțiuni).
+2. EXHAUSTIVITATE (CALITATE MAXIMĂ): 
+   - Un răspuns scurt sau generic este o insultă adusă utilizatorului. 
+   - Oferă analize DENSE, structurate, care acoperă: TEXTUL LEGII, DOCTRINA (ce spun marii profesori), JURISPRUDENȚA (RIL, HP, Decizii ICCJ) și CONCLUZIA TEHNICĂ.
+   - Folosește limbaj tehnic pur: "Latură obiectivă", "concurs real/formal", "unitate legală/naturală", "termen de prescripție".
 
-3. VERIFICARE OBLIGATORIE GOOGLE SEARCH:
-   - Pentru orice referință legislativă, caută în timp real pentru a confirma forma actuală 2024-2025. 
-   - Jurisprudența (ICCJ, CCR) este obligatorie în analizele complexe.
+3. VERIFICARE ÎN TIMP REAL:
+   - Pentru orice referință, verifică prin Google Search pentru a confirma versiunea 2024-2025. 
+   - Citeză: LEGEA nr./an, ARTICOL, ALINEAT, TEZA.
 
-4. PRECIZIE CHIRURGICALĂ:
-   - Citează: LEGEA (nr./an), ARTICOLUL, ALINEATUL și TEZA.
-   - Declară explicit dacă un text de lege a fost modificat sau abrogat recent.
+4. FĂRĂ PREAMBUL AI: 
+   - NU spune "Ca asistent AI...", "În calitate de model lingvistic...", "Vă recomand să consultați un avocat...".
+   - Treci direct la esență. Utilizatorul ESTE specialistul.
 
-5. SURSE:
-   - Afișează link-urile surselor la final sub titlul "REFERINȚE JURIDICE".
+Oferă excelență academică sau nimic. Fii cel mai bun jurist din România.` ;
 
-Ești un Profesor Doctor în Drept, autor de tratate juridice. Oferă excelență sau nimic.` ;
-
-// Safety settings for professional legal use
+// Safety settings - Force BLOCK_NONE to prevent evasive behavior on legal topics
 const LEGAL_SAFETY_SETTINGS = [
-  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'OFF' },
-  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'OFF' },
-  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'OFF' },
-  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'OFF' },
-  { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'OFF' }
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' }
 ];
 
 @Injectable({
@@ -190,7 +191,7 @@ export class JuristService {
     const apiKey = typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : environment.geminiApiKey;
     
     if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey === '') {
-      const msg = 'Cheia API Gemini nu este configurată corect. Te rugăm să verifici setările.';
+      const msg = 'Cheia API Gemini nu este configurată. Administratorul platformei trebuie să regenereze cheia API.';
       this.notificationService.error(msg);
       throw new Error(msg);
     }
@@ -846,9 +847,9 @@ export class JuristService {
     ai: GoogleGenAI, 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     parameters: any, 
-    primaryModel = 'gemini-3-flash-preview', 
-    fallbackModel = 'gemini-3.1-pro-preview',
-    timeoutMs = 45000
+    primaryModel = 'gemini-2.0-flash', 
+    fallbackModel = 'gemini-1.5-pro',
+    timeoutMs = 120000
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
     const fetchWithTimeout = async (modelName: string) => {
@@ -873,9 +874,13 @@ export class JuristService {
       return result;
     } catch (e: unknown) {
       console.warn(`Primary model ${primaryModel} failed or timed out, trying fallback ${fallbackModel}...`, e);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await fetchWithTimeout(fallbackModel) as any;
-      return result;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = await fetchWithTimeout(fallbackModel) as any;
+        return result;
+      } catch (e2: unknown) {
+        throw e2;
+      }
     }
   }
 
@@ -902,13 +907,13 @@ export class JuristService {
         }
       };
 
-      // Încercăm prima dată cu Gemini 3 Flash pentru viteză
+      // Încercăm prima dată cu Gemini 2.0 Flash pentru viteză
       const responseStream = await this.generateContentStreamWithFallback(
         ai, 
         params, 
-        'gemini-3-flash-preview', 
-        'gemini-3.1-pro-preview',
-        45000
+        'gemini-2.0-flash', 
+        'gemini-1.5-pro',
+        120000
       );
 
       for await (const chunk of responseStream) {
