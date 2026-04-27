@@ -2,6 +2,7 @@ import { Component, inject, signal, ElementRef, ViewChild, effect, ChangeDetecto
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService, ChatMessage } from '../services/jurist.service';
+import { AuthService } from '../services/auth.service';
 import { MarkdownPipe } from '../pipes/markdown.pipe';
 
 @Component({
@@ -58,7 +59,7 @@ import { MarkdownPipe } from '../pipes/markdown.pipe';
             </div>
 
             <!-- Export Button for AI Messages -->
-            @if (msg.role === 'ai' && $index > 0) {
+            @if (msg.role === 'ai' && $index > 0 && authService.currentUser()?.plan !== 'trial') {
               <button 
                 (click)="exportMessage(msg, $index)" 
                 class="mt-2 text-xs text-gray-500 hover:text-jurist-orange flex items-center gap-1 transition-colors"
@@ -122,6 +123,7 @@ import { MarkdownPipe } from '../pipes/markdown.pipe';
 })
 export class AssistantComponent {
   juristService = inject(JuristService);
+  authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
   userInput = '';
   messages = signal<ChatMessage[]>([

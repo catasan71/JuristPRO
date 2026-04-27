@@ -2,6 +2,7 @@ import { Component, inject, signal, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService } from '../services/jurist.service';
+import { AuthService } from '../services/auth.service';
 import { MarkdownPipe } from '../pipes/markdown.pipe';
 
 interface DocCategory {
@@ -118,14 +119,16 @@ interface DocCategory {
         <!-- Preview Panel (Updated to Dark Mode) -->
         <div class="lg:col-span-8 bg-[#0a0a0a] border border-gray-800 p-8 rounded-xl shadow-inner min-h-[700px] overflow-y-auto font-sans relative">
           @if (generatedDoc()) {
-            <div class="absolute top-4 right-4 print:hidden z-10">
-              <button (click)="exportDoc()" class="bg-jurist-orange hover:bg-jurist-orangeHover text-white px-4 py-2 rounded-lg text-sm shadow-neon flex items-center gap-2 transition-all font-bold">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                </svg>
-                Export DOCX
-              </button>
-            </div>
+            @if (authService.currentUser()?.plan !== 'trial') {
+              <div class="absolute top-4 right-4 print:hidden z-10">
+                <button (click)="exportDoc()" class="bg-jurist-orange hover:bg-jurist-orangeHover text-white px-4 py-2 rounded-lg text-sm shadow-neon flex items-center gap-2 transition-all font-bold">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  Export DOCX
+                </button>
+              </div>
+            }
             
             <!-- Dark Paper Effect Container -->
             <div class="max-w-[210mm] mx-auto bg-[#18181b] border border-gray-700 p-12 rounded-lg shadow-2xl relative">
@@ -149,6 +152,7 @@ interface DocCategory {
 })
 export class DraftingComponent {
   juristService = inject(JuristService);
+  authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
   
   // Categories covering "Ghidul Justitiabilului"

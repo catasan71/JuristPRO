@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService } from '../services/jurist.service';
+import { AuthService } from '../services/auth.service';
 import { MarkdownPipe } from '../pipes/markdown.pipe';
 
 @Component({
@@ -91,14 +92,16 @@ import { MarkdownPipe } from '../pipes/markdown.pipe';
           <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-jurist-orange to-red-500"></div>
           
           @if (resultText()) {
-            <div class="absolute top-4 right-4 print:hidden">
-              <button (click)="exportDoc()" class="bg-jurist-orange hover:bg-jurist-orangeHover text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1 font-sans">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                </svg>
-                Export DOCX
-              </button>
-            </div>
+            @if (authService.currentUser()?.plan !== 'trial') {
+              <div class="absolute top-4 right-4 print:hidden">
+                <button (click)="exportDoc()" class="bg-jurist-orange hover:bg-jurist-orangeHover text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1 font-sans">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  Export DOCX
+                </button>
+              </div>
+            }
 
             <h3 class="text-xl font-bold mb-4 uppercase text-center border-b-2 border-black pb-2 pt-2">Deviz Estimativ Costuri</h3>
             <div class="whitespace-pre-wrap leading-relaxed prose prose-sm max-w-none text-black" [innerHTML]="resultText() | markdown:'light'"></div>
@@ -120,6 +123,7 @@ import { MarkdownPipe } from '../pipes/markdown.pipe';
 })
 export class FeesComponent {
   juristService = inject(JuristService);
+  authService = inject(AuthService);
   
   actionTypes = [
     'Acțiune în Pretenții (Bănești)',
