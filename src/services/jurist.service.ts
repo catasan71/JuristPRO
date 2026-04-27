@@ -891,13 +891,18 @@ export class JuristService {
     const msg = (e as { message?: string })?.message || '';
     
     if (msg.includes('AI_TIMEOUT')) {
-      throw new Error('Serverul AI este supraîncărcat. Reîncercați în 10 secunde.', { cause: e });
+      throw new Error('Serverul AI răspunde greu momentan. Vă rugăm să reîncercați în câteva secunde.', { cause: e });
+    }
+    if (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand') || msg.includes('overloaded')) {
+      throw new Error('Sistemul AI este momentan suprasolicitat din cauza cererii ridicate (Eroare 503). Vă rugăm să așteptați câteva momente și să reîncercați. Nu vi s-au reținut credite.', { cause: e });
     }
     if (msg.includes('key')) {
       throw new Error('Cheie API invalidă sau expirată.', { cause: e });
     }
     
-    throw new Error(`Asistentul este momentan indisponibil (${msg || 'Eroare conexiune'}). Reîncercați în câteva momente.`, { cause: e });
+    // Fallback to a cleaner error message instead of raw JSON
+    const cleanMsg = msg.length > 100 ? msg.substring(0, 100) + '...' : msg;
+    throw new Error(`Asistentul este momentan indisponibil (${cleanMsg || 'Eroare conexiune'}). Reîncercați în câteva momente.`, { cause: e });
   }
 
   async chatWithAssistant(prompt: string, onChunk?: (chunk: string) => void): Promise<ChatMessage> {
