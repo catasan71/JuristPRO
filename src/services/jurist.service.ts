@@ -848,31 +848,16 @@ export class JuristService {
     const ai = await this.getAiInstance();
     const timeoutMs = parameters.timeoutMs || 90000;
     
-    // Tentative 1: High performance with tools (v1beta)
+    // Simplificăm apelul la v1 pentru stabilitate maximă, evitând erorile 404/v1beta
     try {
       const model = ai.getGenerativeModel({ 
         model: 'gemini-1.5-flash',
         systemInstruction: parameters.systemInstruction,
-        safetySettings: LEGAL_SAFETY_SETTINGS,
-        tools: parameters.tools
-      }, { apiVersion: 'v1beta' });
+        safetySettings: LEGAL_SAFETY_SETTINGS
+      });
 
       return await this._executeWithTimeout(model, parameters, timeoutMs);
     } catch (e: unknown) {
-      const msg = (e as { message?: string })?.message || '';
-      // Dacă e 404 pe v1beta sau eroare de "tools", încercăm varianta stabilă v1
-      if (msg.includes('404') || msg.includes('tool') || msg.includes('not found')) {
-        try {
-          const stableModel = ai.getGenerativeModel({ 
-            model: 'gemini-1.5-flash',
-            systemInstruction: parameters.systemInstruction,
-            safetySettings: LEGAL_SAFETY_SETTINGS
-          });
-          return await this._executeWithTimeout(stableModel, parameters, timeoutMs);
-        } catch (innerE: unknown) {
-           return this._handleAiError(innerE);
-        }
-      }
       return this._handleAiError(e);
     }
   }
