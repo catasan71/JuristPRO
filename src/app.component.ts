@@ -125,6 +125,14 @@ import { NotificationService } from './services/notification.service';
         <!-- LAWYER APP LAYOUT -->
         <div class="fixed inset-0 flex h-full w-full overflow-hidden bg-black font-sans selection:bg-jurist-orange selection:text-white">
           
+          <!-- Fixed Background Silhouette (Stationary) -->
+          <div class="fixed inset-0 pointer-events-none select-none opacity-[0.03] z-0 hidden lg:block overflow-hidden">
+            <img src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?q=80&w=1000&auto=format&fit=crop" 
+                 alt="" 
+                 class="absolute -bottom-20 -right-20 h-[100%] w-auto object-contain grayscale contrast-200"
+                 referrerpolicy="no-referrer">
+          </div>
+          
           <div [class]="'fixed lg:static inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 lg:transform-none bg-jurist-dark border-r border-gray-800 shadow-2xl ' + (mobileMenuOpen ? 'translate-x-0' : '-translate-x-full')">
             <app-sidebar (linkClick)="mobileMenuOpen = false"></app-sidebar>
           </div>
@@ -162,14 +170,6 @@ import { NotificationService } from './services/notification.service';
             <!-- Main Content Area -->
             <main class="flex-1 overflow-hidden p-4 lg:p-6 relative">
               
-              <!-- Fixed Artistic Background Element -->
-              <div class="fixed bottom-0 right-0 h-[80%] w-[50%] pointer-events-none select-none overflow-hidden opacity-[0.03] z-0 hidden lg:flex items-end justify-end">
-                  <img src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?q=80&w=1000&auto=format&fit=crop" 
-                       alt="Themis Silhouette" 
-                       class="h-[120%] w-auto object-contain grayscale contrast-150 rotate-3 translate-x-1/4"
-                       referrerpolicy="no-referrer">
-              </div>
-
               <!-- Content Scroll Area -->
               <div class="h-full w-full max-w-7xl mx-auto overflow-hidden relative z-10">
                 @switch (juristService.currentModule()) {
