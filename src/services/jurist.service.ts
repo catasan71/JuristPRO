@@ -214,11 +214,11 @@ export class JuristService implements OnDestroy {
 
   // AUTOMATION: Computed observable for pending alerts within the 24h window
   readyAlertsCount = computed(() => {
-    return this.events().filter(e => this.isWithinAlertWindow(e)).length;
+    return this.events().filter(e => e.whatsappAlert && this.isWithinAlertWindow(e)).length;
   });
 
   readyAlerts = computed(() => {
-    return this.events().filter(e => this.isWithinAlertWindow(e));
+    return this.events().filter(e => e.whatsappAlert && this.isWithinAlertWindow(e));
   });
 
   ngOnDestroy() {
@@ -652,20 +652,28 @@ export class JuristService implements OnDestroy {
   }
 
   /**
-   * Identifies events that are exactly in the 24h window for notification
+   * Identifies events that are in the 24h window for notification (Upcoming terms)
    */
   isWithinAlertWindow(event: CalendarEvent): boolean {
     if (!event.date || !event.time || !event.whatsappAlert) return false;
     
     try {
+      // Current fixed target for alerts: Today and Tomorrow
+      const today = new Date().toISOString().split('T')[0];
+      const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+      
+      if (event.date === today || event.date === tomorrow) {
+          return true;
+      }
+
       const eventDateTime = new Date(`${event.date}T${event.time}`);
       const now = new Date();
       const diffMs = eventDateTime.getTime() - now.getTime();
       const diffHours = diffMs / (1000 * 60 * 60);
       
-      // We notify if the event is between 0 and 26 hours away (allowing some buffer)
-      // This is the "Safety window" for upcoming terms
-      return diffHours > 0 && diffHours <= 26;
+      // Specifically 24-26 hours window for pro-active alerts, 
+      // or if it's already "today" and hasn't been sent.
+      return diffHours >= -2 && diffHours <= 26;
     } catch (e) {
       console.error('Data error for event:', event.id, e);
       return false;

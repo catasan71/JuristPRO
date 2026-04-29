@@ -482,10 +482,16 @@ export class CalendarComponent implements OnInit {
 
     this.saving.set(true);
     try {
+      const eventToSave = this.currentEvent as CalendarEvent;
       if (this.currentEvent.id) {
-        await this.juristService.updateEvent(this.currentEvent as CalendarEvent);
+        await this.juristService.updateEvent(eventToSave);
       } else {
-        await this.juristService.addEvent(this.currentEvent as CalendarEvent);
+        await this.juristService.addEvent(eventToSave);
+      }
+
+      // AUTOMATION: If it's already "Ready" (e.g. it's tomorrow), trigger it now
+      if (eventToSave.whatsappAlert && this.juristService.isWithinAlertWindow(eventToSave)) {
+          this.juristService.sendWhatsAppAlert(eventToSave);
       }
 
       this.saving.set(false);
