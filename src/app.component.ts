@@ -161,7 +161,17 @@ import { NotificationService } from './services/notification.service';
 
             <!-- Main Content Area -->
             <main class="flex-1 overflow-hidden p-4 lg:p-6 relative">
-              <div class="h-full w-full max-w-7xl mx-auto overflow-hidden">
+              
+              <!-- Fixed Artistic Background Element -->
+              <div class="fixed bottom-0 right-0 h-[80%] w-[50%] pointer-events-none select-none overflow-hidden opacity-[0.03] z-0 hidden lg:flex items-end justify-end">
+                  <img src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?q=80&w=1000&auto=format&fit=crop" 
+                       alt="Themis Silhouette" 
+                       class="h-[120%] w-auto object-contain grayscale contrast-150 rotate-3 translate-x-1/4"
+                       referrerpolicy="no-referrer">
+              </div>
+
+              <!-- Content Scroll Area -->
+              <div class="h-full w-full max-w-7xl mx-auto overflow-hidden relative z-10">
                 @switch (juristService.currentModule()) {
                   @case ('dashboard') { <app-dashboard></app-dashboard> }
                   @case ('assistant') { <app-assistant></app-assistant> }

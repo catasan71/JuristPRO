@@ -171,97 +171,165 @@ interface ISpeechRecognition {
         </div>
       </div>
 
-      <!-- Edit/Create Modal - REVERTED STABLE DESIGN -->
+      <!-- Edit/Create Modal - PREMIUM PRO DESIGN -->
       @if (showModal()) {
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fadeIn">
-          <div class="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-2xl shadow-neon max-h-[90vh] flex flex-col">
+        <div class="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/95 backdrop-blur-2xl animate-fadeIn overflow-hidden">
+          
+          <!-- Modal Container -->
+          <div class="bg-[#0a0a0a] border border-zinc-800/80 rounded-[2.5rem] w-full max-w-4xl shadow-[0_40px_120px_-20px_rgba(0,0,0,1)] flex flex-col h-full max-h-[95vh] sm:max-h-[85vh] relative overflow-hidden transition-all duration-500">
             
-            <div class="p-6 border-b border-gray-800 flex justify-between items-center bg-jurist-dark">
-              <h3 class="text-xl text-white font-bold">{{ currentEvent.id ? 'Editare Dosar' : 'Dosar Nou' }}</h3>
-              <button (click)="closeModal()" class="text-gray-400 hover:text-white">✕</button>
-            </div>
-
-            <div class="flex-1 overflow-y-auto p-6 space-y-4">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label for="caseTitle" class="block text-xs font-bold text-gray-400 uppercase mb-1">Titlu / Număr Dosar</label>
-                  <input id="caseTitle" [ngModel]="currentEvent.title" (ngModelChange)="updateCurrentEvent('title', $event)" class="w-full bg-black border border-gray-700 rounded p-3 text-white focus:border-jurist-orange">
+            <!-- Header section -->
+            <div class="h-24 px-8 border-b border-white/5 flex justify-between items-center bg-zinc-900/10 shrink-0">
+              <div class="flex flex-col">
+                <div class="flex items-center gap-3">
+                  <div class="w-3.5 h-3.5 rounded-full bg-jurist-orange shadow-[0_0_15px_rgba(234,88,12,0.6)] animate-pulse"></div>
+                  <h3 class="text-xl text-white font-black tracking-tight uppercase">
+                    {{ currentEvent.id ? 'Modificare Dosar' : 'Constituire Dosar Nou' }}
+                  </h3>
                 </div>
-                <div>
-                  <label for="caseType" class="block text-xs font-bold text-gray-400 uppercase mb-1">Tip Programare</label>
-                  <select id="caseType" [ngModel]="currentEvent.type" (ngModelChange)="updateCurrentEvent('type', $event)" class="w-full bg-black border border-gray-700 rounded p-3 text-white focus:border-jurist-orange">
-                    <option value="court">Instanță (Termen)</option>
-                    <option value="deadline">Termen Procedural (Limită)</option>
-                    <option value="meeting">Întâlnire Client</option>
-                  </select>
-                </div>
+                <span class="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] mt-1.5 opacity-40">Arhitectură Management v3.0</span>
               </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label for="caseDate" class="block text-xs font-bold text-gray-400 uppercase mb-1">Data</label>
-                  <input id="caseDate" type="date" [ngModel]="currentEvent.date" (ngModelChange)="updateCurrentEvent('date', $event)" class="w-full bg-black border border-gray-700 rounded p-3 text-white focus:border-jurist-orange [color-scheme:dark]">
-                </div>
-                <div>
-                  <label for="caseTime" class="block text-xs font-bold text-gray-400 uppercase mb-1">Ora</label>
-                  <input id="caseTime" type="time" [ngModel]="currentEvent.time" (ngModelChange)="updateCurrentEvent('time', $event)" class="w-full bg-black border border-gray-700 rounded p-3 text-white focus:border-jurist-orange [color-scheme:dark]">
-                </div>
-              </div>
-
-              <div>
-                <label for="caseClient" class="block text-xs font-bold text-gray-400 uppercase mb-1">Client Beneficiar</label>
-                <input id="caseClient" [ngModel]="currentEvent.clientName" (ngModelChange)="updateCurrentEvent('clientName', $event)" class="w-full bg-black border border-gray-700 rounded p-3 text-white focus:border-jurist-orange">
-              </div>
-
-              <div>
-                <label for="caseDetails" class="block text-xs font-bold text-gray-400 uppercase mb-1">Detalii / Locație</label>
-                <input id="caseDetails" [ngModel]="currentEvent.details" (ngModelChange)="updateCurrentEvent('details', $event)" class="w-full bg-black border border-gray-700 rounded p-3 text-white focus:border-jurist-orange">
-              </div>
-
-              <div class="bg-gray-800/30 p-4 rounded-lg border border-gray-800">
-                <div class="flex justify-between items-center mb-3">
-                  <span class="text-xs font-bold text-gray-400 uppercase">Financiar (RON)</span>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label for="caseTotal" class="text-[10px] text-gray-500 block mb-1">Total Onorariu</label>
-                    <input id="caseTotal" type="number" [ngModel]="currentEvent.financial!.total" (ngModelChange)="updateFinancial('total', $event)" class="w-full bg-black border border-gray-700 rounded p-2 text-white">
-                  </div>
-                  <div>
-                    <label for="casePaid" class="text-[10px] text-gray-500 block mb-1">Încasat</label>
-                    <input id="casePaid" type="number" [ngModel]="currentEvent.financial!.paid" (ngModelChange)="updateFinancial('paid', $event)" class="w-full bg-black border border-gray-700 rounded p-2 text-white">
-                  </div>
-                </div>
-                <div class="mt-2 text-right">
-                  <span class="text-xs text-gray-400">Rest de plată: </span>
-                  <span class="text-sm font-bold text-jurist-orange">{{ currentEvent.financial!.rest }} RON</span>
-                </div>
-              </div>
-
-              <div>
-                <div class="flex justify-between items-center mb-1">
-                  <label for="caseNotes" class="block text-xs font-bold text-gray-400 uppercase">Strategie / Note</label>
-                  <button (click)="toggleDictation()" [class]="'text-[10px] font-bold px-3 py-1 rounded transition-colors ' + (isListening ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400')">
-                    {{ isListening ? '• ASCULT...' : '🎤 VOCAL' }}
-                  </button>
-                </div>
-                <textarea id="caseNotes" [ngModel]="currentEvent.notes" (ngModelChange)="updateCurrentEvent('notes', $event)" rows="4" class="w-full bg-black border border-gray-700 rounded p-3 text-white focus:border-jurist-orange resize-none" placeholder="Obiective, martori, probe..."></textarea>
-              </div>
-
-              <div class="flex items-center gap-3 bg-gray-800/30 p-3 rounded-lg">
-                <input type="checkbox" id="alert" [ngModel]="currentEvent.whatsappAlert" (ngModelChange)="updateCurrentEvent('whatsappAlert', $event)" [disabled]="!juristService.profile().phone">
-                <label for="alert" class="text-sm text-gray-300">Alertă WhatsApp Client (cu 24h înainte)</label>
-              </div>
-            </div>
-
-            <div class="p-6 border-t border-gray-800 flex justify-end gap-3">
-              <button (click)="closeModal()" class="px-6 py-2 rounded text-gray-400 hover:text-white transition-colors">Anulează</button>
-              <button (click)="saveEvent()" [disabled]="saving() || !currentEvent.title" class="bg-jurist-orange hover:bg-jurist-orangeHover text-white px-8 py-2 rounded font-bold transition-all disabled:opacity-50 flex items-center gap-2">
-                @if (saving()) {
-                  <div class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                }
-                {{ currentEvent.id ? 'Actualizează' : 'Salvează' }}
+              
+              <button (click)="closeModal()" class="text-zinc-500 hover:text-white p-3 hover:bg-white/5 rounded-full transition-all group" aria-label="Închide">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 group-hover:rotate-90 transition-transform duration-300">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
+            </div>
+ 
+            <div class="flex-1 overflow-y-auto p-10 space-y-10 selection:bg-jurist-orange">
+              
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                
+                <!-- Identitate Column -->
+                <div class="space-y-8">
+                  <div>
+                    <h4 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-6 border-l-2 border-jurist-orange pl-3">Identitate & Programare</h4>
+                    <div class="space-y-6">
+                      <div>
+                        <label for="caseTitle" class="block text-[10px] font-black text-zinc-600 uppercase mb-2 ml-1">Număr Dosar / Denumire Referință</label>
+                        <input id="caseTitle" [ngModel]="currentEvent.title" (ngModelChange)="updateCurrentEvent('title', $event)" placeholder="Ex: 1234/5/2024" class="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 text-white focus:border-jurist-orange outline-none transition-all font-medium placeholder-zinc-800">
+                      </div>
+ 
+                      <div class="grid grid-cols-2 gap-4">
+                        <div>
+                          <label for="caseDate" class="block text-[10px] font-black text-zinc-600 uppercase mb-2 ml-1">Data Termen</label>
+                          <input id="caseDate" type="date" [ngModel]="currentEvent.date" (ngModelChange)="updateCurrentEvent('date', $event)" class="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 text-white focus:border-jurist-orange outline-none [color-scheme:dark]">
+                        </div>
+                        <div>
+                          <label for="caseTime" class="block text-[10px] font-black text-zinc-600 uppercase mb-2 ml-1">Ora</label>
+                          <input id="caseTime" type="time" [ngModel]="currentEvent.time" (ngModelChange)="updateCurrentEvent('time', $event)" class="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 text-white focus:border-jurist-orange outline-none [color-scheme:dark]">
+                        </div>
+                      </div>
+ 
+                      <div>
+                        <label for="caseType" class="block text-[10px] font-black text-zinc-600 uppercase mb-2 ml-1">Tipologie Procedurală</label>
+                        <select id="caseType" [ngModel]="currentEvent.type" (ngModelChange)="updateCurrentEvent('type', $event)" class="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 text-white focus:border-jurist-orange outline-none appearance-none cursor-pointer">
+                          <option value="court">Instanță Judecătorească</option>
+                          <option value="deadline">Termen de Decădere / Procedural</option>
+                          <option value="meeting">Consultă Client / Strategie</option>
+                        </select>
+                      </div>
+ 
+                      <div>
+                        <label for="caseClient" class="block text-[10px] font-black text-zinc-600 uppercase mb-2 ml-1">Client Beneficiar</label>
+                        <input id="caseClient" [ngModel]="currentEvent.clientName" (ngModelChange)="updateCurrentEvent('clientName', $event)" placeholder="Identitate client" class="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 text-white focus:border-jurist-orange outline-none placeholder-zinc-800">
+                      </div>
+ 
+                      <div>
+                        <label for="caseDetails" class="block text-[10px] font-black text-zinc-600 uppercase mb-2 ml-1">Instanța / Locație</label>
+                        <input id="caseDetails" [ngModel]="currentEvent.details" (ngModelChange)="updateCurrentEvent('details', $event)" placeholder="Locație sau detalii instanță" class="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 text-white focus:border-jurist-orange outline-none placeholder-zinc-800">
+                      </div>
+                    </div>
+                  </div>
+ 
+                  <!-- WhatsApp Automation Panel -->
+                  <div class="p-6 bg-emerald-500/5 border border-emerald-500/10 rounded-[2rem] flex items-center justify-between group-hover:border-emerald-500/30 transition-all">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                          </svg>
+                        </div>
+                        <div>
+                          <div class="text-[11px] font-black text-white uppercase">Sistem Notificări</div>
+                          <div class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1 opacity-60">Alertă WhatsApp 24h</div>
+                        </div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="alert" [ngModel]="currentEvent.whatsappAlert" (ngModelChange)="updateCurrentEvent('whatsappAlert', $event)" [disabled]="!juristService.profile().phone" class="sr-only peer">
+                        <div class="w-12 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 shadow-inner"></div>
+                    </label>
+                  </div>
+                </div>
+ 
+                <!-- Finances & Strategy -->
+                <div class="space-y-8 flex flex-col h-full">
+                  <!-- Accounting UI -->
+                  <div class="bg-zinc-900/20 p-8 rounded-[2.5rem] border border-white/5">
+                      <h4 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-6 border-l-2 border-emerald-500 pl-3">Flux Financiar (RON)</h4>
+                      <div class="grid grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                          <label for="caseTotal" class="text-[9px] text-zinc-600 uppercase font-black ml-1">Onorariu Total</label>
+                          <input id="caseTotal" type="number" [ngModel]="currentEvent.financial!.total" (ngModelChange)="updateFinancial('total', $event)" class="w-full bg-black/40 border border-zinc-800/80 rounded-xl p-4 text-sm text-white focus:border-emerald-500 outline-none transition-all">
+                        </div>
+                        <div class="space-y-2">
+                          <label for="casePaid" class="text-[9px] text-zinc-600 uppercase font-black ml-1">Suma Încasată</label>
+                          <input id="casePaid" type="number" [ngModel]="currentEvent.financial!.paid" (ngModelChange)="updateFinancial('paid', $event)" class="w-full bg-black/40 border border-zinc-800/80 rounded-xl p-4 text-sm text-white focus:border-emerald-500 outline-none transition-all">
+                        </div>
+                      </div>
+                      <div class="mt-8 flex justify-between items-center px-8 py-5 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                        <span class="text-[10px] font-black text-emerald-500 uppercase">Restanță Facturabilă</span>
+                        <span class="text-2xl font-black text-emerald-400 font-mono tracking-tighter">{{ currentEvent.financial!.rest }} RON</span>
+                      </div>
+                  </div>
+ 
+                  <!-- Tactical Notes / Speech UI -->
+                  <div class="flex flex-col flex-1 min-h-[300px]">
+                      <div class="flex justify-between items-center mb-5">
+                        <h4 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] border-l-2 border-blue-500 pl-3">Obiective & Strategie</h4>
+                        <button (click)="toggleDictation()" [class]="'flex items-center gap-2 px-6 py-2.5 rounded-full text-[9px] font-black transition-all ' + (isListening ? 'bg-white text-black shadow-[0_0_25px_rgba(255,255,255,0.4)]' : 'bg-transparent text-zinc-500 border border-zinc-800 hover:border-zinc-600')">
+                          @if (isListening) {
+                            <span class="relative flex h-2 w-2 mr-1">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                            </span>
+                          }
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                          </svg>
+                          {{ isListening ? 'DICTARE ACTIVĂ' : 'DICTARE VOCALĂ' }}
+                        </button>
+                      </div>
+                      <textarea id="caseNotes" [ngModel]="currentEvent.notes" (ngModelChange)="updateCurrentEvent('notes', $event)" rows="6" class="flex-1 w-full bg-zinc-900/20 border border-zinc-800/50 rounded-[2.5rem] p-8 text-sm text-zinc-300 focus:border-jurist-orange outline-none resize-none transition-all placeholder-zinc-800 font-medium leading-relaxed" placeholder="Notează punctele cheie, martorii și probele necesare..."></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+ 
+            <!-- Footer controls -->
+            <div class="h-32 px-10 border-t border-white/5 bg-zinc-900/30 flex flex-col sm:flex-row justify-between items-center gap-6 shrink-0 relative z-20">
+              <div class="hidden sm:flex items-center gap-5">
+                  <div class="w-10 h-10 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 opacity-40">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751A11.959 11.959 0 0112 2.714z" />
+                    </svg>
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="text-[11px] text-zinc-400 font-black uppercase tracking-tight">Securitate Cloud Activă</span>
+                    <span class="text-[8px] text-zinc-700 font-bold uppercase tracking-widest">Protocol Criptare AES-256</span>
+                  </div>
+              </div>
+              
+              <div class="flex items-center gap-5 w-full sm:w-auto">
+                <button (click)="closeModal()" class="flex-1 sm:flex-none px-12 py-5 rounded-2xl text-zinc-500 hover:text-white font-black transition-all uppercase text-[11px] tracking-[0.2em] hover:bg-white/5">Abandon</button>
+                <button (click)="saveEvent()" [disabled]="saving() || !currentEvent.title" class="flex-1 sm:flex-none px-20 py-5 rounded-2xl bg-jurist-orange text-white font-black hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-30 shadow-[0_20px_50px_rgba(234,88,12,0.3)] uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3">
+                  @if (saving()) {
+                      <div class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  }
+                  {{ saving() ? 'PROCESARE...' : (currentEvent.id ? 'ACTUALIZARE DOSAR' : 'FINALIZEAZĂ DOSAR') }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
