@@ -1,4 +1,4 @@
-import { Component, inject, signal, ElementRef, ViewChild, effect, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, ElementRef, ViewChild, effect, ChangeDetectorRef, ChangeDetectionStrategy, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService, ChatMessage } from '../services/jurist.service';
@@ -21,8 +21,8 @@ interface ISpeechRecognition {
 }
 
 interface WindowWithSpeechRecognition extends Window {
-  SpeechRecognition?: any;
-  webkitSpeechRecognition?: any;
+  SpeechRecognition?: new () => ISpeechRecognition;
+  webkitSpeechRecognition?: new () => ISpeechRecognition;
 }
 
 @Component({
@@ -160,6 +160,7 @@ export class AssistantComponent {
   juristService = inject(JuristService);
   authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
+  private ngZone = inject(NgZone);
   userInput = '';
   messages = signal<ChatMessage[]>([
     { role: 'ai', content: 'Bună ziua! Sunt Mentorul JuristPRO. Am acces în timp real la internet pentru a verifica ultimele modificări legislative (ex: abrogări NCPC/NCPP). Ce subiect dezbatem astăzi?', timestamp: new Date() }
@@ -192,21 +193,36 @@ export class AssistantComponent {
           this.recognition.continuous = false;
           this.recognition.interimResults = false;
 
-          this.recognition.onresult = (event: SpeechRecognitionEvent) => {
-            const transcript = event.results[0][0].transcript;
-            this.userInput += (this.userInput ? ' ' : '') + transcript;
-            this.cdr.detectChanges();
+          this.recognition.onstart = () => {
+            this.ngZone.run(() => {
+              this.isListening = true;
+              this.cdr.detectChanges();
+            });
+            console.log('Dictation started...');
           };
 
-          this.recognition.onerror = (event: unknown) => {
-            console.error('Speech recognition error:', event);
-            this.isListening = false;
-            this.cdr.detectChanges();
+          this.recognition.onresult = (event: SpeechRecognitionEvent) => {
+            const transcript = event.results[0][0].transcript;
+            this.ngZone.run(() => {
+              this.userInput += (this.userInput ? ' ' : '') + transcript;
+              this.cdr.detectChanges();
+            });
+          };
+
+          this.recognition.onerror = (event: { error?: string }) => {
+            console.error('Speech recognition error:', event.error || event);
+            this.ngZone.run(() => {
+              this.isListening = false;
+              this.cdr.detectChanges();
+            });
           };
 
           this.recognition.onend = () => {
-            this.isListening = false;
-            this.cdr.detectChanges();
+            this.ngZone.run(() => {
+              this.isListening = false;
+              this.cdr.detectChanges();
+            });
+            console.log('Dictation ended.');
           };
         }
       }
@@ -215,7 +231,7 @@ export class AssistantComponent {
 
   toggleDictation() {
     if (!this.recognition) {
-      alert('Recunoașterea vocală nu este suportată de acest browser.');
+      alert('Recunoașterea vocală nu este suportată în acest mediu sau browser.');
       return;
     }
 
@@ -224,9 +240,11 @@ export class AssistantComponent {
     } else {
       try {
         this.recognition.start();
-        this.isListening = true;
+        // isListening will be set in onstart
       } catch (e) {
-        console.error('Failed to start recognition:', e);
+        console.error('Recognition start failed:', e);
+        this.isListening = false;
+        this.cdr.detectChanges();
       }
     }
   }

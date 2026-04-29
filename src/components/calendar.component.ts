@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService, CalendarEvent } from '../services/jurist.service';
@@ -12,10 +12,16 @@ interface ISpeechRecognition {
   continuous: boolean;
   interimResults: boolean;
   onresult: (event: SpeechRecognitionEvent) => void;
-  onerror: (event: unknown) => void;
+  onerror: (event: { error?: string }) => void;
+  onstart: () => void;
   onend: () => void;
   start: () => void;
   stop: () => void;
+}
+
+interface WindowWithSpeechRecognition extends Window {
+  SpeechRecognition?: new () => ISpeechRecognition;
+  webkitSpeechRecognition?: new () => ISpeechRecognition;
 }
 
 @Component({
@@ -287,6 +293,8 @@ interface ISpeechRecognition {
 })
 export class CalendarComponent implements OnInit {
   juristService = inject(JuristService);
+  private cdr = inject(ChangeDetectorRef);
+  private ngZone = inject(NgZone);
   aiPrompt = '';
   aiResponse = signal<string>('');
   
@@ -461,60 +469,67 @@ export class CalendarComponent implements OnInit {
 
   initSpeechRecognition() {
     if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as unknown as { SpeechRecognition: new () => ISpeechRecognition }).SpeechRecognition || (window as unknown as { webkitSpeechRecognition: new () => ISpeechRecognition }).webkitSpeechRecognition;
+      const win = window as unknown as WindowWithSpeechRecognition;
+      const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
       if (SpeechRecognition) {
         this.recognition = new SpeechRecognition();
-        this.recognition.lang = 'ro-RO';
-        this.recognition.continuous = true;
-        this.recognition.interimResults = false;
+        if (this.recognition) {
+          this.recognition.lang = 'ro-RO';
+          this.recognition.continuous = false;
+          this.recognition.interimResults = false;
 
-        this.recognition.onresult = (event: SpeechRecognitionEvent) => {
-          const transcript = event.results[event.results.length - 1][0].transcript;
-          const currentNotes = this.currentEventSignal().notes || '';
-          this.updateCurrentEvent('notes', currentNotes + (currentNotes ? ' ' : '') + transcript);
-        };
+          this.recognition.onstart = () => {
+            this.ngZone.run(() => {
+              this.isListening = true;
+              this.cdr.detectChanges();
+            });
+            console.log('Calendar notes dictation started...');
+          };
 
-        this.recognition.onerror = () => {
-          this.isListening = false;
-        };
-        
-        this.recognition.onend = () => {
-             if (this.isListening) { 
-                 try { this.recognition?.start(); } catch (e) { console.error(e); }
-             }
-        };
+          this.recognition.onresult = (event: SpeechRecognitionEvent) => {
+            const transcript = event.results[0][0].transcript;
+            this.ngZone.run(() => {
+              const currentNotes = this.currentEventSignal().notes || '';
+              this.updateCurrentEvent('notes', currentNotes + (currentNotes ? ' ' : '') + transcript);
+              this.cdr.detectChanges();
+            });
+          };
+
+          this.recognition.onerror = (event: { error?: string }) => {
+            console.error('Calendar speech error:', event.error || event);
+            this.ngZone.run(() => {
+              this.isListening = false;
+              this.cdr.detectChanges();
+            });
+          };
+          
+          this.recognition.onend = () => {
+            this.ngZone.run(() => {
+              this.isListening = false;
+              this.cdr.detectChanges();
+            });
+          };
+        }
       }
     }
   }
 
   toggleDictation() {
     if (!this.recognition) {
-      console.warn("Browserul dvs. nu suportă dictarea vocală.");
+      alert('Recunoașterea vocală nu este suportată în acest browser.');
       return;
     }
 
     if (this.isListening) {
-      this.stopDictation();
+      this.recognition.stop();
     } else {
-      this.startDictation();
-    }
-  }
-
-  startDictation() {
-    this.isListening = true;
-    try {
-      this.recognition?.start();
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  stopDictation() {
-    this.isListening = false;
-    try {
-      this.recognition?.stop();
-    } catch (e) {
-      console.error(e);
+      try {
+        this.recognition.start();
+      } catch (e) {
+        console.error('Calendar recognition start fail:', e);
+        this.isListening = false;
+        this.cdr.detectChanges();
+      }
     }
   }
 }
