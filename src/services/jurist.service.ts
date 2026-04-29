@@ -609,21 +609,19 @@ export class JuristService {
       'meeting': '🤝 ÎNTÂLNIRE/CONSULTARE'
     };
 
-    // Constructing message with explicit checks to ensure all data is communicated
+    // Constructing message with explicit symbols to ensure all data is communicated clearly
     const messageLines = [
       `🔔 *ALERTA JURISTPRO*`,
       ``,
-      `📌 *Eveniment:* ${event.title || 'Nespecificat'}`,
+      `📌 *Subiect:* ${event.title || 'Nespecificat'}`,
       `📂 *Tip:* ${eventNames[event.type] || event.type}`,
       `👤 *Client:* ${event.clientName || 'Nespecificat'}`,
-      `📅 *Data:* ${event.date || 'Nespecificată'}`,
-      `🕒 *Ora:* ${event.time || 'Nespecificată'}`,
+      `📅 *Data/Ora:* ${event.date || '...'} | ${event.time || '...'}`,
       `⚖️ *Obiect:* ${event.caseObject || 'Nespecificat'}`,
-      ``,
-      `📍 *Locație/Detalii:* ${event.details || 'Nespecificat'}`,
+      `📍 *Loc:* ${event.details || 'Nespecificat'}`,
       `📝 *Note:* ${event.notes || 'Nespecificat'}`,
       ``,
-      `_Mesaj generat de asistentul tău JuristPRO AI_`
+      `_Expediat via JuristPRO AI_`
     ];
 
     const message = encodeURIComponent(messageLines.join('\n'));

@@ -56,7 +56,7 @@ import { AuthService } from '../services/auth.service';
              </div>
              <div>
                <h3 class="text-white font-bold text-sm">Alerte WhatsApp Disponibile</h3>
-               <p class="text-gray-400 text-xs text-balance">Aveți <span class="text-green-400 font-bold">{{ juristService.pendingAlertsCount() }}</span> evenimente (Azi/Mâine) ce necesită informare prin WhatsApp.</p>
+               <p class="text-gray-400 text-xs text-balance">Aveți <span class="text-green-400 font-bold">{{ juristService.pendingAlertsCount() }}</span> evenimente. <span class="italic">(Dupa trimiterea automata, apasa "Send" in WhatsApp)</span></p>
              </div>
            </div>
            <div class="flex gap-2">
