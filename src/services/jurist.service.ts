@@ -578,9 +578,6 @@ export class JuristService {
       cleanPhone = '40' + cleanPhone.substring(1);
     } else if (cleanPhone.startsWith('7') && cleanPhone.length === 9) {
       cleanPhone = '40' + cleanPhone;
-    } else if (!cleanPhone.startsWith('40') && cleanPhone.length === 9) {
-      // Fallback for other formats
-      cleanPhone = '40' + cleanPhone;
     }
 
     const eventNames: Record<string, string> = {
@@ -589,19 +586,24 @@ export class JuristService {
       'meeting': '🤝 ÎNTÂLNIRE/CONSULTARE'
     };
 
-    const message = encodeURIComponent(
-      `🔔 *ALERTA JURISTPRO*\n\n` +
-      `📌 *Eveniment:* ${event.title}\n` +
-      `📂 *Tip:* ${eventNames[event.type] || event.type}\n` +
-      `👤 *Client:* ${event.clientName || 'Nespecificat'}\n` +
-      `📅 *Data:* ${event.date}\n` +
-      `🕒 *Ora:* ${event.time}\n` +
-      `⚖️ *Obiect:* ${event.caseObject || 'Fără obiect'}\n\n` +
-      `🏛️ *Locație/Detalii:* ${event.details || 'Nespecificat'}\n` +
-      `📝 *Note:* ${event.notes || 'Fără note'}\n\n` +
+    // Constructing message with explicit checks to ensure all data is communicated
+    const messageLines = [
+      `🔔 *ALERTA JURISTPRO*`,
+      ``,
+      `📌 *Eveniment:* ${event.title || 'Nespecificat'}`,
+      `📂 *Tip:* ${eventNames[event.type] || event.type}`,
+      `👤 *Client:* ${event.clientName || 'Nespecificat'}`,
+      `📅 *Data:* ${event.date || 'Nespecificată'}`,
+      `🕒 *Ora:* ${event.time || 'Nespecificată'}`,
+      `⚖️ *Obiect:* ${event.caseObject || 'Nespecificat'}`,
+      ``,
+      `📍 *Locație/Detalii:* ${event.details || 'Nespecificat'}`,
+      `📝 *Note:* ${event.notes || 'Nespecificat'}`,
+      ``,
       `_Mesaj generat de asistentul tău JuristPRO AI_`
-    );
+    ];
 
+    const message = encodeURIComponent(messageLines.join('\n'));
     const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`;
     window.open(url, '_blank');
   }

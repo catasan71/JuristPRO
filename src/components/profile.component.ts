@@ -66,8 +66,11 @@ import { AuthService, UserConsents } from '../services/auth.service';
                     </svg>
                     Telefon (Alerte WhatsApp)
                   </span>
-                  <input [(ngModel)]="formData.phone" placeholder="Ex: 0722123456" class="w-full bg-black border border-gray-600 rounded p-3 text-white focus:border-jurist-orange transition-colors">
-                  <p class="text-[10px] text-gray-500 mt-1 italic">Introdu numărul în format local (ex: 07...). Sistemul va converti automat în format internațional WhatsApp (+40... pentru Romania).</p>
+                  <input [(ngModel)]="formData.phone" placeholder="Ex: 0722 123 456" class="w-full bg-black border border-gray-600 rounded p-3 text-white focus:border-jurist-orange transition-colors">
+                  <p class="text-[10px] text-gray-400 mt-1 italic leading-tight">
+                    <span class="text-jurist-orange font-bold">Important:</span> Introdu numărul în format local (ex: 07...). <br>
+                    Sistemul adaugă automat prefixul <span class="font-bold">+40 (România)</span> pentru alerte WhatsApp corecte.
+                  </p>
                 </div>
                 <div>
                   <span class="block text-xs font-bold text-gray-500 uppercase mb-1">Email Notificări</span>
