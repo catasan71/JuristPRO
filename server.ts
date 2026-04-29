@@ -414,10 +414,89 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
-// Health check
+// HEALTH CHECK & AUTOMATION
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// --- BACKGROUND AUTOMATION ROBOT ---
+// This function scans all events and sends proactive alerts for tomorrow's deadlines
+async function runDeadlineAutomation() {
+  console.log('[ROBOT] Se scanează dosarele pentru termenele de mâine...');
+  const adminDb = getAdminDb();
+  
+  try {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+    // Find all events for tomorrow across ALL users (Corrected Logic)
+    const eventsSnapshot = await adminDb.collection('events')
+      .where('event_date', '==', tomorrowStr)
+      .where('whatsapp_alert', '==', true)
+      .get();
+
+    if (eventsSnapshot.empty) {
+      console.log('[ROBOT] Nu s-au găsit termene pentru mâine.');
+      return;
+    }
+
+    console.log(`[ROBOT] S-au găsit ${eventsSnapshot.size} termene. Se procesează...`);
+
+    for (const doc of eventsSnapshot.docs) {
+      const event = doc.data();
+      const userId = event.user_id;
+      
+      if (!userId) continue;
+
+      const profileDoc = await adminDb.collection('profiles').doc(userId).get();
+      const profile = profileDoc.data();
+
+      if (profile && profile.email) {
+        // 1. Send Email Notification (Automatic Fallback)
+        try {
+          const resend = getResend();
+          await resend.emails.send({
+            from: 'JuristPRO Robot <robot@developly.pro>',
+            to: [profile.email],
+            subject: `⚠️ ALERTĂ TERMEN: Dosar ${event.title}`,
+            html: `
+              <div style="font-family: sans-serif; padding: 20px; background: #f9fafb;">
+                <h2 style="color: #ea580c;">⚠️ Reamintire Termen Dosar</h2>
+                <p>Bună ziua, <strong>Av. ${profile.full_name || 'Colegu'}</strong>,</p>
+                <p>Acesta este un mesaj automat generat de <strong>JuristPRO</strong>.</p>
+                <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e5e7eb;">
+                  <p><strong>Dosar:</strong> ${event.title}</p>
+                  <p><strong>Client:</strong> ${event.clientName || 'N/A'}</p>
+                  <p><strong>Data/Ora:</strong> ${event.date} la ${event.time}</p>
+                  <p><strong>Locație:</strong> ${event.details || 'N/A'}</p>
+                </div>
+                <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">Vă rugăm să verificați aplicația pentru detalii suplimentare și strategii.</p>
+              </div>
+            `
+          });
+          console.log(`[ROBOT] Email trimis către ${profile.email} pentru dosarul ${event.title}`);
+        } catch (e) {
+          console.error(`[ROBOT] Eroare trimitere email:`, e);
+        }
+
+        // 2. Placeholder for WhatsApp API (e.g., Twilio / CallMeBot)
+        // Daca ai cont Twilio, aici am putea pune:
+        // await sendTwilioWhatsApp(profile.phone, `Reamintire: Dosar ${event.title} - ${event.date}`);
+      }
+    }
+  } catch (error) {
+    console.error('[ROBOT] Eroare critică în ciclul de automatizare:', error);
+  }
+}
+
+// Run automation every 8 hours (3 times a day)
+setInterval(runDeadlineAutomation, 8 * 60 * 60 * 1000); 
+
+// Also trigger once on server startup after a small delay
+setTimeout(runDeadlineAutomation, 15000);
+
+// --- END AUTOMATION ---
 
 // Serve static files
 const distPath = path.join(__dirname, 'dist/juristpro/browser');

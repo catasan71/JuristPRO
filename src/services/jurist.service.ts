@@ -658,14 +658,16 @@ export class JuristService implements OnDestroy {
     if (!event.date || !event.time || !event.whatsappAlert) return false;
     
     try {
-      const eventDateTime = new Date(`${event.date}T${event.time}`);
-      const now = new Date();
-      const diffMs = eventDateTime.getTime() - now.getTime();
-      const diffHours = diffMs / (1000 * 60 * 60);
+      // LOGIC: Check if event is exactly tomorrow (approx 24h away)
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0,0,0,0);
       
-      // We notify if the event is between 0 and 28 hours away.
-      // This is the "Safety window" for terms occurring tomorrow.
-      return diffHours > 0 && diffHours <= 28;
+      const checkDate = new Date(event.date);
+      checkDate.setHours(0,0,0,0);
+
+      // Return true only if it is exactly tomorrow
+      return checkDate.getTime() === tomorrow.getTime();
     } catch (e) {
       console.error('Data error for event:', event.id, e);
       return false;
