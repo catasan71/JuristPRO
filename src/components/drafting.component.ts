@@ -1,4 +1,4 @@
-import { Component, inject, signal, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, signal, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService } from '../services/jurist.service';
@@ -16,6 +16,7 @@ interface DocCategory {
   selector: 'app-drafting',
   standalone: true,
   imports: [CommonModule, FormsModule, MarkdownPipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="h-full flex flex-col bg-jurist-card rounded-xl border border-gray-800 shadow-neon overflow-hidden animate-fadeIn">
       <div class="p-6 border-b border-gray-800 bg-jurist-dark flex justify-between items-center">

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService } from '../services/jurist.service';
@@ -9,6 +9,7 @@ import { MarkdownPipe } from '../pipes/markdown.pipe';
   selector: 'app-fees',
   standalone: true,
   imports: [CommonModule, FormsModule, MarkdownPipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="h-full flex flex-col bg-jurist-card rounded-xl border border-gray-800 shadow-neon overflow-hidden animate-fadeIn">
       <!-- Header -->

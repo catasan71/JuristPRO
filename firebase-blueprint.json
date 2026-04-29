@@ -43,20 +43,27 @@
     },
     "Event": {
       "title": "Event",
-      "description": "Calendar event.",
+      "description": "Calendar event for judicial management.",
       "type": "object",
       "properties": {
         "user_id": { "type": "string" },
-        "title": { "type": "string" },
+        "title": { "type": "string", "description": "Numărul de dosar sau denumirea speței." },
         "client_name": { "type": "string" },
         "case_object": { "type": "string" },
-        "event_date": { "type": "string" },
+        "event_date": { "type": "string", "format": "date" },
         "event_time": { "type": "string" },
-        "type": { "type": "string" },
-        "details": { "type": "string" },
-        "notes": { "type": "string" },
-        "whatsapp_alert": { "type": "boolean" },
-        "financial": { "type": "object" }
+        "type": { "type": "string", "enum": ["court", "deadline", "meeting"] },
+        "details": { "type": "string", "description": "Locația (Instanța, Sala, Zoom)." },
+        "notes": { "type": "string", "description": "Note de strategie sau obiective." },
+        "whatsapp_alert": { "type": "boolean", "description": "Dacă este activată alerta automată cu 24h înainte." },
+        "financial": {
+          "type": "object",
+          "properties": {
+            "total": { "type": "number", "description": "Onorariu total stabilit." },
+            "paid": { "type": "number", "description": "Suma încasată până în prezent." },
+            "rest": { "type": "number", "description": "Diferența de onorariu rămasă (calculată)." }
+          }
+        }
       },
       "required": ["user_id", "title", "event_date", "event_time", "type"]
     },

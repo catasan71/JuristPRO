@@ -1,4 +1,4 @@
-import { Component, inject, computed, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, computed, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService, ModuleType } from '../services/jurist.service';
@@ -8,6 +8,7 @@ import { AuthService } from '../services/auth.service';
   selector: 'app-dashboard',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="h-full flex flex-col space-y-6 overflow-y-auto pb-6 relative animate-fadeIn">
       <!-- Welcome Section -->
@@ -42,12 +43,12 @@ import { AuthService } from '../services/auth.service';
            <button (click)="nav('pricing')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors">
              Upgrade Acum
            </button>
-        </div>
+         </div>
       }
 
-      <!-- WHATSAPP AUTOMATION BANNER - STABLE DESIGN -->
+      <!-- WHATSAPP AUTOMATION BANNER - STABLE CLEAN DESIGN -->
       @if (juristService.readyAlertsCount() > 0) {
-        <div class="bg-gray-900 border border-green-600/30 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 animate-slideDown mb-8 shadow-xl">
+        <div class="bg-gray-900 border border-green-600/30 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 animate-slideDown mb-8 shadow-xl transition-all">
            <div class="flex items-center gap-5">
              <div class="bg-green-600 p-4 rounded-2xl text-white shadow-lg">
                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" class="bi bi-whatsapp" viewBox="0 0 16 16">

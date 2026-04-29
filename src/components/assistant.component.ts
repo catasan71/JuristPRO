@@ -1,14 +1,35 @@
-import { Component, inject, signal, ElementRef, ViewChild, effect, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, signal, ElementRef, ViewChild, effect, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService, ChatMessage } from '../services/jurist.service';
 import { AuthService } from '../services/auth.service';
 import { MarkdownPipe } from '../pipes/markdown.pipe';
 
+interface SpeechRecognitionEvent {
+  results: { transcript: string }[][];
+}
+
+interface ISpeechRecognition {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: unknown) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+}
+
+interface WindowWithSpeechRecognition extends Window {
+  SpeechRecognition?: any;
+  webkitSpeechRecognition?: any;
+}
+
 @Component({
   selector: 'app-assistant',
   standalone: true,
   imports: [CommonModule, FormsModule, MarkdownPipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="h-full flex flex-col bg-jurist-card rounded-xl border border-gray-800 overflow-hidden shadow-neon relative animate-fadeIn">
       <!-- Header -->
@@ -90,19 +111,33 @@ import { MarkdownPipe } from '../pipes/markdown.pipe';
 
       <!-- Input Area -->
       <div class="p-4 bg-jurist-dark border-t border-gray-800 flex-shrink-0">
-        <div class="flex gap-2">
-          <input 
-            type="text" 
-            [(ngModel)]="userInput" 
-            (keyup.enter)="sendMessage()"
-            placeholder="Întreabă despre o lege recentă, un RIL sau o știre juridică..."
-            class="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-jurist-orange focus:ring-1 focus:ring-jurist-orange transition-all placeholder-gray-600"
-            [disabled]="juristService.isLoading()"
-          >
+        <div class="flex gap-2 items-center">
+          <div class="flex-1 relative flex items-center">
+            <input 
+              type="text" 
+              [(ngModel)]="userInput" 
+              (keyup.enter)="sendMessage()"
+              placeholder="Întreabă despre o lege recentă, un RIL sau o știre juridică..."
+              class="w-full bg-gray-900 border border-gray-700 rounded-xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:border-jurist-orange focus:ring-1 focus:ring-jurist-orange transition-all placeholder-gray-600"
+              [disabled]="juristService.isLoading()"
+            >
+            <button 
+              (click)="toggleDictation()"
+              [class]="'absolute right-2 p-2 rounded-full transition-all ' + (isListening ? 'bg-red-600 text-white animate-pulse' : 'text-gray-400 hover:text-jurist-orange')"
+              [title]="isListening ? 'Oprește dictarea' : 'Dictare vocală'"
+            >
+              @if (isListening) {
+                <span class="absolute inset-0 rounded-full bg-red-600 animate-ping opacity-25"></span>
+              }
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 relative z-10">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+              </svg>
+            </button>
+          </div>
           <button 
             (click)="sendMessage()" 
             [disabled]="!userInput.trim() || juristService.isLoading()"
-            class="bg-jurist-orange hover:bg-jurist-orangeHover text-white px-6 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[60px]"
+            class="bg-jurist-orange hover:bg-jurist-orangeHover text-white px-6 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[60px] shadow-lg"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
@@ -132,7 +167,11 @@ export class AssistantComponent {
 
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
+  isListening = false;
+  recognition: ISpeechRecognition | null = null;
+
   constructor() {
+    this.initSpeechRecognition();
     // Only scroll when messages update, preventing loop
     effect(() => {
         const msgs = this.messages(); // dependency tracking
@@ -140,6 +179,56 @@ export class AssistantComponent {
             setTimeout(() => this.scrollToBottom(), 100);
         }
     });
+  }
+
+  initSpeechRecognition() {
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as WindowWithSpeechRecognition;
+      const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        this.recognition = new SpeechRecognition();
+        if (this.recognition) {
+          this.recognition.lang = 'ro-RO';
+          this.recognition.continuous = false;
+          this.recognition.interimResults = false;
+
+          this.recognition.onresult = (event: SpeechRecognitionEvent) => {
+            const transcript = event.results[0][0].transcript;
+            this.userInput += (this.userInput ? ' ' : '') + transcript;
+            this.cdr.detectChanges();
+          };
+
+          this.recognition.onerror = (event: unknown) => {
+            console.error('Speech recognition error:', event);
+            this.isListening = false;
+            this.cdr.detectChanges();
+          };
+
+          this.recognition.onend = () => {
+            this.isListening = false;
+            this.cdr.detectChanges();
+          };
+        }
+      }
+    }
+  }
+
+  toggleDictation() {
+    if (!this.recognition) {
+      alert('Recunoașterea vocală nu este suportată de acest browser.');
+      return;
+    }
+
+    if (this.isListening) {
+      this.recognition.stop();
+    } else {
+      try {
+        this.recognition.start();
+        this.isListening = true;
+      } catch (e) {
+        console.error('Failed to start recognition:', e);
+      }
+    }
   }
 
   scrollToBottom(): void {

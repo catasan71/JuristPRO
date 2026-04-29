@@ -1,14 +1,35 @@
-import { Component, inject, signal, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, signal, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService } from '../services/jurist.service';
 import { AuthService } from '../services/auth.service';
 import { MarkdownPipe } from '../pipes/markdown.pipe';
 
+interface SpeechRecognitionEvent {
+  results: { transcript: string }[][];
+}
+
+interface ISpeechRecognition {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: unknown) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+}
+
+interface WindowWithSpeechRecognition extends Window {
+  SpeechRecognition?: any;
+  webkitSpeechRecognition?: any;
+}
+
 @Component({
   selector: 'app-strategy',
   standalone: true,
   imports: [CommonModule, FormsModule, MarkdownPipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="h-full flex flex-col bg-jurist-card rounded-xl border border-gray-800 shadow-neon overflow-hidden animate-fadeIn">
       <!-- Header Fixed -->
@@ -28,7 +49,15 @@ import { MarkdownPipe } from '../pipes/markdown.pipe';
                 <span class="w-2 h-2 bg-jurist-orange rounded-full"></span>
                 Descrieți situația de fapt
               </span>
-              <span class="text-xs text-orange-400 bg-orange-900/20 px-2 py-1 rounded border border-orange-500/50 font-bold">Cost: 5 Credite AI (Analiză Complexă)</span>
+              <div class="flex items-center gap-3">
+                <button (click)="toggleDictation()" [class]="'flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border ' + (isListening ? 'bg-red-600 text-white border-red-500 animate-pulse' : 'bg-gray-800 text-gray-400 border-gray-700 hover:border-jurist-orange')">
+                  @if (isListening) {
+                    <span class="w-2 h-2 rounded-full bg-white"></span>
+                  }
+                  {{ isListening ? 'ASCULTĂM...' : '🎤 DICTARE VOCALĂ' }}
+                </button>
+                <span class="text-[10px] text-orange-400 bg-orange-900/20 px-2 py-1 rounded border border-orange-500/50 font-bold uppercase tracking-wider">Cost: 5 Credite</span>
+              </div>
             </div>
             
             <textarea 
@@ -137,6 +166,63 @@ export class StrategyComponent {
   private cdr = inject(ChangeDetectorRef);
   caseDetails = '';
   strategyResult = signal<string>('');
+
+  isListening = false;
+  recognition: ISpeechRecognition | null = null;
+
+  constructor() {
+    this.initSpeechRecognition();
+  }
+
+  initSpeechRecognition() {
+    if (typeof window !== 'undefined') {
+      const win = window as unknown as WindowWithSpeechRecognition;
+      const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        this.recognition = new SpeechRecognition();
+        if (this.recognition) {
+          this.recognition.lang = 'ro-RO';
+          this.recognition.continuous = false;
+          this.recognition.interimResults = false;
+
+          this.recognition.onresult = (event: SpeechRecognitionEvent) => {
+            const transcript = event.results[0][0].transcript;
+            this.caseDetails += (this.caseDetails ? ' ' : '') + transcript;
+            this.cdr.detectChanges();
+          };
+
+          this.recognition.onerror = (event: unknown) => {
+            console.error('Speech recognition error:', event);
+            this.isListening = false;
+            this.cdr.detectChanges();
+          };
+
+          this.recognition.onend = () => {
+            this.isListening = false;
+            this.cdr.detectChanges();
+          };
+        }
+      }
+    }
+  }
+
+  toggleDictation() {
+    if (!this.recognition) {
+      alert('Recunoașterea vocală nu este suportată de acest browser.');
+      return;
+    }
+
+    if (this.isListening) {
+      this.recognition.stop();
+    } else {
+      try {
+        this.recognition.start();
+        this.isListening = true;
+      } catch (e) {
+        console.error('Failed to start recognition:', e);
+      }
+    }
+  }
 
   async generate() {
     if (!this.caseDetails) return;
