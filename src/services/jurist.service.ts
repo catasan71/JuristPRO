@@ -190,6 +190,29 @@ export class JuristService {
 
   private _aiInstance: GoogleGenAI | null = null;
 
+  // AUTOMATION: Computed observable for pending alerts
+  pendingAlertsCount = computed(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    
+    return this.events().filter(e => 
+      (e.date === today || e.date === tomorrowStr) && e.whatsappAlert
+    ).length;
+  });
+
+  pendingAlerts = computed(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    
+    return this.events().filter(e => 
+      (e.date === today || e.date === tomorrowStr) && e.whatsappAlert
+    );
+  });
+
   private async getAiInstance(): Promise<GoogleGenAI> {
     if (this._aiInstance) return this._aiInstance;
     

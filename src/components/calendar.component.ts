@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JuristService, CalendarEvent } from '../services/jurist.service';
@@ -340,7 +340,7 @@ interface ISpeechRecognition {
     }
   `
 })
-export class CalendarComponent {
+export class CalendarComponent implements OnInit {
   juristService = inject(JuristService);
   aiPrompt = '';
   aiResponse = signal<string>('');
@@ -435,6 +435,30 @@ export class CalendarComponent {
     this.showModal = true;
   }
 
+  ngOnInit() {
+    this.checkPendingAlerts();
+  }
+
+  // AUTOMATION: Proactively check for upcoming alerts that haven't been sent
+  private checkPendingAlerts() {
+    setTimeout(() => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      const pending = this.juristService.events().filter(e => 
+        (e.date === todayStr || e.date === tomorrowStr) && 
+        e.whatsappAlert
+      );
+
+      if (pending.length > 0 && this.juristService.profile().phone) {
+        // We could automatically pop one here, but it's better to show a "Sync" button if multiple
+        console.log(`Found ${pending.length} pending WhatsApp alerts.`);
+      }
+    }, 2000);
+  }
+
   closeModal() {
     this.showModal = false;
     this.stopDictation();
@@ -457,13 +481,23 @@ export class CalendarComponent {
     }
 
     this.saving.set(true);
-    if (this.currentEvent.id) {
-      await this.juristService.updateEvent(this.currentEvent as CalendarEvent);
-    } else {
-      await this.juristService.addEvent(this.currentEvent as CalendarEvent);
+    try {
+      if (this.currentEvent.id) {
+        await this.juristService.updateEvent(this.currentEvent as CalendarEvent);
+      } else {
+        await this.juristService.addEvent(this.currentEvent as CalendarEvent);
+      }
+
+      // AUTOMATION: If WhatsApp alert is active, trigger it immediately after saving
+      if (this.currentEvent.whatsappAlert && this.juristService.profile().phone) {
+        this.juristService.sendWhatsAppAlert(this.currentEvent as CalendarEvent);
+      }
+
+      this.saving.set(false);
+      this.closeModal();
+    } catch {
+      this.saving.set(false);
     }
-    this.saving.set(false);
-    this.closeModal();
   }
 
   initSpeechRecognition() {
