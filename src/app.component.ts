@@ -125,14 +125,13 @@ import { NotificationService } from './services/notification.service';
         <!-- LAWYER APP LAYOUT -->
         <div class="fixed inset-0 flex h-full w-full overflow-hidden bg-black font-sans selection:bg-jurist-orange selection:text-white">
           
-          <!-- Sidebar Wrapper (Drawer on Mobile, Static on Desktop) -->
-          <div [class]="'fixed lg:static inset-y-0 left-0 z-50 w-[85vw] max-w-[320px] lg:w-64 transform transition-transform duration-500 ease-out lg:transform-none bg-jurist-dark border-r border-gray-800 shadow-[20px_0_50px_rgba(0,0,0,0.5)] overflow-hidden ' + (mobileMenuOpen ? 'translate-x-0' : '-translate-x-full')">
-            <app-sidebar (linkClick)="mobileMenuOpen = false" class="h-full w-full"></app-sidebar>
+          <div [class]="'fixed lg:static inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 lg:transform-none bg-jurist-dark border-r border-gray-800 shadow-2xl ' + (mobileMenuOpen ? 'translate-x-0' : '-translate-x-full')">
+            <app-sidebar (linkClick)="mobileMenuOpen = false"></app-sidebar>
           </div>
 
           <!-- Backdrop -->
           @if (mobileMenuOpen) {
-            <button (click)="toggleMobileMenu()" (keydown.escape)="toggleMobileMenu()" class="fixed inset-0 bg-black/90 z-40 lg:hidden backdrop-blur-md w-full h-full cursor-pointer transition-all duration-500 animate-fadeIn" aria-label="Close menu"></button>
+            <button (click)="toggleMobileMenu()" (keydown.escape)="toggleMobileMenu()" class="fixed inset-0 bg-black/80 z-40 lg:hidden backdrop-blur-sm w-full h-full cursor-pointer transition-opacity duration-300" aria-label="Close menu"></button>
           }
 
           <!-- Main Layout (Right Side) -->
