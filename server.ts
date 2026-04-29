@@ -38,7 +38,18 @@ function getAdminDb() {
       const configPath = path.join(__dirname, 'firebase-applet-config.json');
       if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        if (!projectId) projectId = config.projectId;
+        
+        // In AI Studio, the firestoreDatabaseId is often actually the GCP Project ID
+        // and matching them avoids PERMISSION_DENIED on the resource project.
+        if (!projectId) {
+           projectId = config.projectId;
+           // If we have a database identified by UUID and projector is "juristpro", 
+           // likely the databaseId IS the actual project identity.
+           if (config.firestoreDatabaseId && config.firestoreDatabaseId.startsWith('ai-studio-')) {
+             projectId = config.firestoreDatabaseId;
+           }
+        }
+
         if (config.firestoreDatabaseId) {
           databaseId = config.firestoreDatabaseId;
         }
@@ -53,7 +64,7 @@ function getAdminDb() {
       });
     }
     
-    adminDbInstance = getFirestore(admin.app(), databaseId);
+    adminDbInstance = getFirestore(admin.app(), (databaseId === '(default)' || !databaseId) ? undefined : databaseId);
   }
   return adminDbInstance;
 }
