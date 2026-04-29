@@ -46,8 +46,8 @@ import { AuthService } from '../services/auth.service';
       }
 
       <!-- WHATSAPP AUTOMATION BANNER -->
-      @if (juristService.pendingAlertsCount() > 0) {
-        <div class="bg-green-900/20 border border-green-800 rounded-xl p-4 flex items-center justify-between animate-fadeIn">
+      @if (juristService.readyAlertsCount() > 0) {
+        <div class="bg-green-900/20 border border-green-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-fadeIn mb-6">
            <div class="flex items-center gap-3">
              <div class="bg-green-600/20 p-2 rounded-lg text-green-400">
                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-whatsapp" viewBox="0 0 16 16">
@@ -55,13 +55,13 @@ import { AuthService } from '../services/auth.service';
                </svg>
              </div>
              <div>
-               <h3 class="text-white font-bold text-sm">Alerte WhatsApp Disponibile</h3>
-               <p class="text-gray-400 text-xs text-balance">Aveți <span class="text-green-400 font-bold">{{ juristService.pendingAlertsCount() }}</span> evenimente. <span class="italic">(Dupa trimiterea automata, apasa "Send" in WhatsApp)</span></p>
+               <h3 class="text-white font-bold text-sm">Alerte WhatsApp Scadente (24h)</h3>
+               <p class="text-gray-400 text-xs text-balance">Aveți <span class="text-green-400 font-bold">{{ juristService.readyAlertsCount() }}</span> alerte ce trebuie trimise acum pentru termenele de mâine.</p>
              </div>
            </div>
            <div class="flex gap-2">
-             <button (click)="sendAllAlerts()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-lg active:scale-95">
-               Trimite Toate (Automat)
+             <button (click)="sendAllAlerts()" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-lg active:scale-95 whitespace-nowrap">
+               Trimite Alertele Scadente
              </button>
            </div>
         </div>
@@ -311,21 +311,18 @@ export class DashboardComponent {
     setTimeout(() => this.showToast = false, 4000);
   }
 
-  // AUTOMATION: Sequences all pending alerts for today/tomorrow
+  // AUTOMATION: Sequences all pending alerts within the 24h window
   async sendAllAlerts() {
-    const alerts = this.juristService.pendingAlerts();
+    const alerts = this.juristService.readyAlerts();
     if (alerts.length === 0) return;
 
     for (let i = 0; i < alerts.length; i++) {
-       // Using window.open sequentially might be blocked, so we trigger one by one
-       // with a slight delay or wait for user to focus back
        this.juristService.sendWhatsAppAlert(alerts[i]);
        
-       // Alert user that next one is ready
        if (i < alerts.length - 1) {
-          // This delay helps bypass some popup blocker issues but users still need to permit popups
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, 2000));
        }
     }
   }
+
 }

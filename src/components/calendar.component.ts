@@ -488,11 +488,6 @@ export class CalendarComponent implements OnInit {
         await this.juristService.addEvent(this.currentEvent as CalendarEvent);
       }
 
-      // AUTOMATION: If WhatsApp alert is active, trigger it immediately after saving
-      if (this.currentEvent.whatsappAlert && this.juristService.profile().phone) {
-        this.juristService.sendWhatsAppAlert(this.currentEvent as CalendarEvent);
-      }
-
       this.saving.set(false);
       this.closeModal();
     } catch {

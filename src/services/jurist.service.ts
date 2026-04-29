@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, inject, effect } from '@angular/core';
+import { Injectable, signal, computed, inject, effect, OnDestroy } from '@angular/core';
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 import { AuthService, UserConsents } from './auth.service';
 import { db } from '../app/firebase';
@@ -9,14 +9,24 @@ import { NotificationService } from './notification.service';
 /**
  * Interfețe pentru stabilitate și tipizare
  */
+export interface AiContentPart {
+  text?: string;
+  inlineData?: {
+    mimeType: string;
+    data: string;
+  };
+}
+
+export interface AiContent {
+  role: 'user' | 'model' | 'ai';
+  parts: AiContentPart[];
+}
+
 export interface AiCallParameters {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  contents: any[];
+  contents: AiContent[];
   systemInstruction?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tools?: any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  generationConfig?: any;
+  tools?: { googleSearch?: Record<string, unknown> }[];
+  generationConfig?: Record<string, unknown>;
   timeoutMs?: number;
 }
 
@@ -140,7 +150,7 @@ const LEGAL_SAFETY_SETTINGS = [
 @Injectable({
   providedIn: 'root'
 })
-export class JuristService {
+export class JuristService implements OnDestroy {
   authService = inject(AuthService);
   notificationService = inject(NotificationService);
 
@@ -190,28 +200,32 @@ export class JuristService {
 
   private _aiInstance: GoogleGenAI | null = null;
 
-  // AUTOMATION: Computed observable for pending alerts
-  pendingAlertsCount = computed(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    
-    return this.events().filter(e => 
-      (e.date === today || e.date === tomorrowStr) && e.whatsappAlert
-    ).length;
+  private handleFirestoreError(error: unknown, operation: string, path: string | null = null) {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      operation,
+      path,
+      userId: this.authService.currentUser()?.id,
+      timestamp: new Date().toISOString()
+    };
+    console.error('Firestore Error:', JSON.stringify(errInfo));
+    this.notificationService.error(`Eroare bază de date (${operation}). Reîncercați.`);
+  }
+
+  // AUTOMATION: Computed observable for pending alerts within the 24h window
+  readyAlertsCount = computed(() => {
+    return this.events().filter(e => this.isWithinAlertWindow(e)).length;
   });
 
-  pendingAlerts = computed(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    
-    return this.events().filter(e => 
-      (e.date === today || e.date === tomorrowStr) && e.whatsappAlert
-    );
+  readyAlerts = computed(() => {
+    return this.events().filter(e => this.isWithinAlertWindow(e));
   });
+
+  ngOnDestroy() {
+    if (this._announcementUnsub) {
+      this._announcementUnsub();
+    }
+  }
 
   private async getAiInstance(): Promise<GoogleGenAI> {
     if (this._aiInstance) return this._aiInstance;
@@ -235,9 +249,11 @@ export class JuristService {
   
   promoCodes = this._promoCodes.asReadonly();
 
+  private _announcementUnsub: (() => void) | null = null;
+
   constructor() {
     // 1. Listen for global announcements (Always active, public)
-    onSnapshot(doc(db, 'system_settings', 'announcement'), (docSnap) => {
+    this._announcementUnsub = onSnapshot(doc(db, 'system_settings', 'announcement'), (docSnap) => {
       if (docSnap.exists()) {
         this._announcement.set(docSnap.data() as SystemAnnouncement);
       }
@@ -526,9 +542,13 @@ export class JuristService {
     }
 
     if (!this.authService.isDemo()) {
-      const updates: Record<string, unknown> = { cabinet_data: data };
-      if (consents) updates.consents = consents;
-      await updateDoc(doc(db, 'profiles', user.id), updates);
+      try {
+        const updates: Record<string, unknown> = { cabinet_data: data };
+        if (consents) updates.consents = consents;
+        await updateDoc(doc(db, 'profiles', user.id), updates);
+      } catch (e) {
+        this.handleFirestoreError(e, 'updateProfile', `profiles/${user.id}`);
+      }
     }
   }
 
@@ -542,24 +562,28 @@ export class JuristService {
       return;
     }
 
-    const dbPayload = {
-      user_id: user.id,
-      title: event.title,
-      client_name: event.clientName,
-      case_object: event.caseObject,
-      event_date: event.date,
-      event_time: event.time,
-      type: event.type,
-      details: event.details,
-      notes: event.notes,
-      whatsapp_alert: event.whatsappAlert,
-      financial: event.financial
-    };
+    try {
+      const dbPayload = {
+        user_id: user.id,
+        title: event.title,
+        client_name: event.clientName,
+        case_object: event.caseObject,
+        event_date: event.date,
+        event_time: event.time,
+        type: event.type,
+        details: event.details,
+        notes: event.notes,
+        whatsapp_alert: event.whatsappAlert,
+        financial: event.financial
+      };
 
-    const docRef = await addDoc(collection(db, 'events'), dbPayload);
-    if (docRef.id) {
-      const newEvent = { ...event, id: docRef.id };
-      this._events.update(e => [...e, newEvent]);
+      const docRef = await addDoc(collection(db, 'events'), dbPayload);
+      if (docRef.id) {
+        const newEvent = { ...event, id: docRef.id };
+        this._events.update(e => [...e, newEvent]);
+      }
+    } catch (e) {
+      this.handleFirestoreError(e, 'addEvent', 'events');
     }
   }
 
@@ -603,25 +627,23 @@ export class JuristService {
       cleanPhone = '40' + cleanPhone;
     }
 
-    const eventNames: Record<string, string> = {
-      'court': '🏛️ TERMEN INSTANȚĂ',
-      'deadline': '⚠️ TERMEN LIMITĂ',
-      'meeting': '🤝 ÎNTÂLNIRE/CONSULTARE'
-    };
-
-    // Constructing message with explicit symbols to ensure all data is communicated clearly
+    // Constructing message with high-visibility markers
+    const location = event.details || 'Nespecificat';
+    const notes = event.notes || 'Fără note adiționale';
+    
     const messageLines = [
-      `🔔 *ALERTA JURISTPRO*`,
+      `🔔 *ALERTA JURISTPRO - REAMINTIRE 24H*`,
       ``,
-      `📌 *Subiect:* ${event.title || 'Nespecificat'}`,
-      `📂 *Tip:* ${eventNames[event.type] || event.type}`,
-      `👤 *Client:* ${event.clientName || 'Nespecificat'}`,
-      `📅 *Data/Ora:* ${event.date || '...'} | ${event.time || '...'}`,
-      `⚖️ *Obiect:* ${event.caseObject || 'Nespecificat'}`,
-      `📍 *Loc:* ${event.details || 'Nespecificat'}`,
-      `📝 *Note:* ${event.notes || 'Nespecificat'}`,
+      `⚖️ *DOSAR/SUBIECT:* ${event.title || 'Nespecificat'}`,
+      `👤 *CLIENT:* ${event.clientName || 'Nespecificat'}`,
+      `📅 *DATA:* ${event.date || '...'}`,
+      `🕒 *ORA:* ${event.time || '...'}`,
+      `📂 *OBIECT:* ${event.caseObject || 'Nespecificat'}`,
+      `📍 *LOCAȚIE:* ${location}`,
       ``,
-      `_Expediat via JuristPRO AI_`
+      `📝 *NOTE:* ${notes}`,
+      ``,
+      `_Mesaj automat generat de către JuristPRO AI_`
     ];
 
     const message = encodeURIComponent(messageLines.join('\n'));
@@ -629,23 +651,48 @@ export class JuristService {
     window.open(url, '_blank');
   }
 
+  /**
+   * Identifies events that are exactly in the 24h window for notification
+   */
+  isWithinAlertWindow(event: CalendarEvent): boolean {
+    if (!event.date || !event.time || !event.whatsappAlert) return false;
+    
+    try {
+      const eventDateTime = new Date(`${event.date}T${event.time}`);
+      const now = new Date();
+      const diffMs = eventDateTime.getTime() - now.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      
+      // We notify if the event is between 0 and 26 hours away (allowing some buffer)
+      // This is the "Safety window" for upcoming terms
+      return diffHours > 0 && diffHours <= 26;
+    } catch (e) {
+      console.error('Data error for event:', event.id, e);
+      return false;
+    }
+  }
+
   async submitTicket(ticket: Omit<SupportTicket, 'id' | 'date' | 'status'>) {
     const user = this.authService.currentUser();
     
     if (user && !this.authService.isDemo()) {
-       const docRef = await addDoc(collection(db, 'tickets'), {
-         user_id: user.id,
-         name: ticket.name,
-         email: ticket.email,
-         type: ticket.type,
-         message: ticket.message,
-         status: 'open',
-         created_at: new Date().toISOString()
-       });
-       
-       if (docRef.id) {
-          const newTicket: SupportTicket = { ...ticket, id: docRef.id, userId: user.id, date: new Date(), status: 'open' };
-          this._tickets.update(t => [newTicket, ...t]);
+       try {
+         const docRef = await addDoc(collection(db, 'tickets'), {
+           user_id: user.id,
+           name: ticket.name,
+           email: ticket.email,
+           type: ticket.type,
+           message: ticket.message,
+           status: 'open',
+           created_at: new Date().toISOString()
+         });
+         
+         if (docRef.id) {
+            const newTicket: SupportTicket = { ...ticket, id: docRef.id, userId: user.id, date: new Date(), status: 'open' };
+            this._tickets.update(t => [newTicket, ...t]);
+         }
+       } catch (e) {
+         this.handleFirestoreError(e, 'submitTicket', 'tickets');
        }
     } else {
        const newTicket: SupportTicket = { ...ticket, id: 'local-'+Date.now(), userId: user?.id, date: new Date(), status: 'open' };
@@ -974,6 +1021,42 @@ export class JuristService {
     throw new Error(`Asistentul este momentan indisponibil (${cleanMsg || 'Eroare conexiune'}). Reîncercați în câteva momente.`, { cause: e });
   }
 
+  private async _streamAiResponse(
+    parameters: AiCallParameters,
+    requiredCredits: number,
+    onChunk?: (chunk: string) => void
+  ): Promise<string> {
+    if (!this.checkCredits(requiredCredits)) {
+      throw new Error("Fonduri insuficiente.");
+    }
+    
+    this._loading.set(true);
+    let fullText = "";
+    
+    try {
+      const result = await this._callAi(parameters);
+
+      for await (const chunk of result as AsyncIterable<{ text: string; candidates?: unknown[] }>) {
+        const text = chunk.text;
+        if (text) {
+          fullText += text;
+          if (onChunk) onChunk(fullText);
+        }
+      }
+      
+      await this.consumeCredit(requiredCredits);
+      return fullText || "";
+    } catch(e: unknown) { 
+      // If we already have a significant response, we return it despite the error (e.g. partial timeout)
+      if (fullText.length > 50) return fullText;
+      const errorMsg = (e as Error)?.message || 'Eroare necunoscută';
+      this.notificationService.error(errorMsg);
+      throw e;
+    } finally {
+      this._loading.set(false);
+    }
+  }
+
   async chatWithAssistant(prompt: string, onChunk?: (chunk: string) => void): Promise<ChatMessage> {
     if (!this.checkCredits(3)) {
       throw new Error("Fonduri insuficiente.");
@@ -990,14 +1073,18 @@ export class JuristService {
         tools: [{ googleSearch: {} }]
       });
 
-      for await (const chunk of result) {
+      interface AiChunk { 
+        text: string; 
+        candidates?: { groundingMetadata?: { groundingChunks?: unknown[] } }[];
+      }
+
+      for await (const chunk of result as AsyncIterable<AiChunk>) {
         const text = chunk.text;
         if (text) {
           fullText += text;
           if (onChunk) onChunk(fullText);
         }
 
-        // Extracție surse dacă există
         const metadata = chunk.candidates?.[0]?.groundingMetadata;
         if (metadata?.groundingChunks) {
           const chunks = metadata.groundingChunks as { web?: { uri?: string; title?: string } }[];
@@ -1022,57 +1109,19 @@ export class JuristService {
   }
 
   async generateStrategy(caseDetails: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(5)) throw new Error("Fonduri insuficiente.");
-    this._loading.set(true);
-    let fullText = "";
-    try {
-      const result = await this._callAi({
-        systemInstruction: LEGAL_GUARDRAILS,
-        contents: [{ role: 'user', parts: [{ text: `Analizează speța: ${caseDetails}. Oferă o strategie juridică exhaustivă (Rezumat, Încadrare, Opțiuni, Riscuri, Probatoriu, Recomandări).` }] }],
-        tools: [{ googleSearch: {} }]
-      });
-      
-      for await (const chunk of result) {
-        const text = chunk.text;
-        if (text) {
-          fullText += text;
-          if (onChunk) onChunk(fullText);
-        }
-      }
-      
-      await this.consumeCredit(5);
-      return fullText || "";
-    } catch(e: unknown) { 
-      if (fullText.length > 50) return fullText;
-      throw e;
-    } finally { this._loading.set(false); }
+    return this._streamAiResponse({
+      systemInstruction: LEGAL_GUARDRAILS,
+      contents: [{ role: 'user', parts: [{ text: `Analizează speța: ${caseDetails}. Oferă o strategie juridică exhaustivă (Rezumat, Încadrare, Opțiuni, Riscuri, Probatoriu, Recomandări).` }] }],
+      tools: [{ googleSearch: {} }]
+    }, 5, onChunk);
   }
 
   async analyzeEvidence(fileBase64: string, mimeType: string, prompt: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(5)) throw new Error("Fonduri insuficiente.");
-    this._loading.set(true);
-    let fullText = "";
-    try {
-      const result = await this._callAi({
-        systemInstruction: LEGAL_GUARDRAILS,
-        contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: fileBase64 } }, { text: `Audit juridic: ${prompt}` }] }],
-        tools: [{ googleSearch: {} }]
-      });
-      
-      for await (const chunk of result) {
-        const text = chunk.text;
-        if (text) {
-          fullText += text;
-          if (onChunk) onChunk(fullText);
-        }
-      }
-      
-      await this.consumeCredit(5);
-      return fullText || "";
-    } catch(e: unknown) { 
-      if (fullText.length > 50) return fullText;
-      throw e;
-    } finally { this._loading.set(false); }
+    return this._streamAiResponse({
+      systemInstruction: LEGAL_GUARDRAILS,
+      contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data: fileBase64 } }, { text: `Audit juridic: ${prompt}` }] }],
+      tools: [{ googleSearch: {} }]
+    }, 5, onChunk);
   }
 
   async generateEvidenceImage(prompt: string): Promise<string> {
@@ -1080,7 +1129,6 @@ export class JuristService {
     this._loading.set(true);
     try {
       await this.consumeCredit(5);
-      // Placeholder - Imagen support variable based on region/version
       console.log('Solicitare imagine pentru:', prompt);
       return "https://picsum.photos/seed/legal/800/600";
     } finally {
@@ -1089,57 +1137,19 @@ export class JuristService {
   }
 
   async draftDocument(type: string, details: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(3)) throw new Error("Fonduri insuficiente.");
-    this._loading.set(true);
-    let fullText = "";
-    try {
-      const result = await this._callAi({
-        systemInstruction: LEGAL_GUARDRAILS,
-        contents: [{ role: 'user', parts: [{ text: `Redactează profesional: ${type}. Detalii: ${details}. Fără Markdown, limbaj formal instanță.` }] }],
-        tools: [{ googleSearch: {} }]
-      });
-      
-      for await (const chunk of result) {
-        const text = chunk.text;
-        if (text) {
-          fullText += text;
-          if (onChunk) onChunk(fullText);
-        }
-      }
-      
-      await this.consumeCredit(3);
-      return fullText || "";
-    } catch(e: unknown) { 
-      if (fullText.length > 50) return fullText;
-      throw e;
-    } finally { this._loading.set(false); }
+    return this._streamAiResponse({
+      systemInstruction: LEGAL_GUARDRAILS,
+      contents: [{ role: 'user', parts: [{ text: `Redactează profesional: ${type}. Detalii: ${details}. Fără Markdown, limbaj formal instanță.` }] }],
+      tools: [{ googleSearch: {} }]
+    }, 3, onChunk);
   }
 
   async calculateFees(context: string, onChunk?: (chunk: string) => void): Promise<string> {
-    if (!this.checkCredits(2)) throw new Error("Fonduri insuficiente.");
-    this._loading.set(true);
-    let fullText = "";
-    try {
-      const result = await this._callAi({
-        systemInstruction: LEGAL_GUARDRAILS,
-        contents: [{ role: 'user', parts: [{ text: `Calculează taxe/onorarii (OUG 80/2013): ${context}` }] }],
-        tools: [{ googleSearch: {} }]
-      });
-      
-      for await (const chunk of result) {
-        const text = chunk.text;
-        if (text) {
-          fullText += text;
-          if (onChunk) onChunk(fullText);
-        }
-      }
-      
-      await this.consumeCredit(2);
-      return fullText || "";
-    } catch(e: unknown) { 
-      if (fullText.length > 20) return fullText;
-      throw e;
-    } finally { this._loading.set(false); }
+    return this._streamAiResponse({
+      systemInstruction: LEGAL_GUARDRAILS,
+      contents: [{ role: 'user', parts: [{ text: `Calculează taxe/onorarii (OUG 80/2013): ${context}` }] }],
+      tools: [{ googleSearch: {} }]
+    }, 2, onChunk);
   }
 
   async deleteTransaction(txId: string) {
