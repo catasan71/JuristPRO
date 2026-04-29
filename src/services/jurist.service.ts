@@ -193,7 +193,7 @@ export class JuristService {
   private async getAiInstance(): Promise<GoogleGenAI> {
     if (this._aiInstance) return this._aiInstance;
     
-    const apiKey = typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : (environment as any).geminiApiKey;
+    const apiKey = typeof GEMINI_API_KEY !== 'undefined' ? GEMINI_API_KEY : (environment as { geminiApiKey?: string }).geminiApiKey;
     
     if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey === '') {
       const msg = 'Cheia API Gemini nu este configurată. Administratorul platformei trebuie să regenereze cheia API.';
@@ -571,35 +571,38 @@ export class JuristService {
     }
 
     // Clean phone number (keep only digits)
-    const cleanPhone = phone.replace(/\D/g, '');
-    // Ensure prefix 40 for Romania if not already present, assuming 10 digits means local RO
-    let formattedPhone = cleanPhone;
-    if (cleanPhone.length === 10 && cleanPhone.startsWith('0')) {
-      formattedPhone = '40' + cleanPhone.substring(1);
-    } else if (cleanPhone.length === 9) {
-      formattedPhone = '40' + cleanPhone;
+    let cleanPhone = phone.replace(/\D/g, '');
+    
+    // Ensure it starts with 40 (Romania)
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '40' + cleanPhone.substring(1);
+    } else if (cleanPhone.startsWith('7') && cleanPhone.length === 9) {
+      cleanPhone = '40' + cleanPhone;
+    } else if (!cleanPhone.startsWith('40') && cleanPhone.length === 9) {
+      // Fallback for other formats
+      cleanPhone = '40' + cleanPhone;
     }
 
     const eventNames: Record<string, string> = {
-      'court': 'Termen Instanță',
-      'deadline': 'Termen Limită',
-      'meeting': 'Întâlnire/Consultare'
+      'court': '🏛️ TERMEN INSTANȚĂ',
+      'deadline': '⚠️ TERMEN LIMITĂ',
+      'meeting': '🤝 ÎNTÂLNIRE/CONSULTARE'
     };
 
     const message = encodeURIComponent(
       `🔔 *ALERTA JURISTPRO*\n\n` +
       `📌 *Eveniment:* ${event.title}\n` +
       `📂 *Tip:* ${eventNames[event.type] || event.type}\n` +
-      `👤 *Client:* ${event.clientName}\n` +
+      `👤 *Client:* ${event.clientName || 'Nespecificat'}\n` +
       `📅 *Data:* ${event.date}\n` +
       `🕒 *Ora:* ${event.time}\n` +
-      `⚖️ *Obiect:* ${event.caseObject}\n\n` +
-      `*Locație/Detalii:* ${event.details || 'FĂRĂ'}\n` +
-      `*Note:* ${event.notes || 'FĂRĂ'}\n\n` +
-      `_Generat de JuristPRO AI_`
+      `⚖️ *Obiect:* ${event.caseObject || 'Fără obiect'}\n\n` +
+      `🏛️ *Locație/Detalii:* ${event.details || 'Nespecificat'}\n` +
+      `📝 *Note:* ${event.notes || 'Fără note'}\n\n` +
+      `_Mesaj generat de asistentul tău JuristPRO AI_`
     );
 
-    const url = `https://wa.me/${formattedPhone}?text=${message}`;
+    const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`;
     window.open(url, '_blank');
   }
 
@@ -894,7 +897,8 @@ export class JuristService {
    */
   private async _callAi(
     parameters: AiCallParameters
-  ): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): Promise<AsyncIterable<any>> {
     const ai = await this.getAiInstance();
     const timeoutMs = parameters.timeoutMs || 90000;
     
@@ -905,7 +909,8 @@ export class JuristService {
     }
   }
 
-  private async _executeWithTimeout(ai: GoogleGenAI, parameters: AiCallParameters, timeoutMs: number): Promise<any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async _executeWithTimeout(ai: GoogleGenAI, parameters: AiCallParameters, timeoutMs: number): Promise<AsyncIterable<any>> {
     const responsePromise = ai.models.generateContentStream({
       model: 'gemini-3-flash-preview',
       contents: parameters.contents,
@@ -972,7 +977,7 @@ export class JuristService {
         // Extracție surse dacă există
         const metadata = chunk.candidates?.[0]?.groundingMetadata;
         if (metadata?.groundingChunks) {
-          const chunks = metadata.groundingChunks as any[];
+          const chunks = metadata.groundingChunks as { web?: { uri?: string; title?: string } }[];
           chunks.forEach(c => {
             const uri = c.web?.uri;
             if (uri && !sources.some(s => s.url === uri)) {
@@ -1014,7 +1019,7 @@ export class JuristService {
       
       await this.consumeCredit(5);
       return fullText || "";
-    } catch(e: any) { 
+    } catch(e: unknown) { 
       if (fullText.length > 50) return fullText;
       throw e;
     } finally { this._loading.set(false); }
@@ -1041,7 +1046,7 @@ export class JuristService {
       
       await this.consumeCredit(5);
       return fullText || "";
-    } catch(e: any) { 
+    } catch(e: unknown) { 
       if (fullText.length > 50) return fullText;
       throw e;
     } finally { this._loading.set(false); }
@@ -1081,7 +1086,7 @@ export class JuristService {
       
       await this.consumeCredit(3);
       return fullText || "";
-    } catch(e: any) { 
+    } catch(e: unknown) { 
       if (fullText.length > 50) return fullText;
       throw e;
     } finally { this._loading.set(false); }

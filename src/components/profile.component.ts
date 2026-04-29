@@ -64,9 +64,10 @@ import { AuthService, UserConsents } from '../services/auth.service';
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
                     </svg>
-                    Telefon (Alerte)
+                    Telefon (Alerte WhatsApp)
                   </span>
-                  <input [(ngModel)]="formData.phone" placeholder="+40 7xx xxx xxx" class="w-full bg-black border border-gray-600 rounded p-3 text-white focus:border-jurist-orange transition-colors">
+                  <input [(ngModel)]="formData.phone" placeholder="Ex: 0722123456" class="w-full bg-black border border-gray-600 rounded p-3 text-white focus:border-jurist-orange transition-colors">
+                  <p class="text-[10px] text-gray-500 mt-1 italic">Introdu numărul în format local (ex: 07...). Sistemul va converti automat în format internațional WhatsApp (+40... pentru Romania).</p>
                 </div>
                 <div>
                   <span class="block text-xs font-bold text-gray-500 uppercase mb-1">Email Notificări</span>
