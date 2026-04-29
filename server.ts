@@ -31,25 +31,28 @@ const port = 3000;
 let adminDbInstance: admin.firestore.Firestore | null = null;
 function getAdminDb() {
   if (!adminDbInstance) {
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'juristpro'
-      });
-    }
-    
+    let projectId = process.env.FIREBASE_PROJECT_ID;
     let databaseId = '(default)';
+    
     try {
       const configPath = path.join(__dirname, 'firebase-applet-config.json');
       if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (!projectId) projectId = config.projectId;
         if (config.firestoreDatabaseId) {
           databaseId = config.firestoreDatabaseId;
         }
       }
     } catch (e) {
-      console.error('Failed to read firebase-applet-config.json:', e);
+      console.error('Failed to read config:', e);
     }
 
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        projectId: projectId || 'juristpro'
+      });
+    }
+    
     adminDbInstance = getFirestore(admin.app(), databaseId);
   }
   return adminDbInstance;
@@ -422,7 +425,7 @@ app.get('/api/health', (req, res) => {
 // --- BACKGROUND AUTOMATION ROBOT ---
 // This function scans all events and sends proactive alerts for tomorrow's deadlines
 async function runDeadlineAutomation() {
-  console.log('[ROBOT] Se scanează dosarele pentru termenele de mâine...');
+  console.log('[ROBOT] Se scanează pro-activ dosarele...');
   const adminDb = getAdminDb();
   
   try {
@@ -430,59 +433,49 @@ async function runDeadlineAutomation() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-    // Find all events for tomorrow across ALL users (Corrected Logic)
-    const eventsSnapshot = await adminDb.collection('events')
-      .where('event_date', '==', tomorrowStr)
-      .where('whatsapp_alert', '==', true)
-      .get();
-
-    if (eventsSnapshot.empty) {
-      console.log('[ROBOT] Nu s-au găsit termene pentru mâine.');
-      return;
-    }
-
-    console.log(`[ROBOT] S-au găsit ${eventsSnapshot.size} termene. Se procesează...`);
-
-    for (const doc of eventsSnapshot.docs) {
-      const event = doc.data();
-      const userId = event.user_id;
-      
-      if (!userId) continue;
-
-      const profileDoc = await adminDb.collection('profiles').doc(userId).get();
+    // Fallback: Scan profiles then events to avoid index requirements or permission issues on collectionGroup
+    const profilesSnapshot = await adminDb.collection('profiles').get();
+    
+    for (const profileDoc of profilesSnapshot.docs) {
       const profile = profileDoc.data();
-
-      if (profile && profile.email) {
-        // 1. Send Email Notification (Automatic Fallback)
-        try {
-          const resend = getResend();
-          await resend.emails.send({
-            from: 'JuristPRO Robot <robot@developly.pro>',
-            to: [profile.email],
-            subject: `⚠️ ALERTĂ TERMEN: Dosar ${event.title}`,
-            html: `
-              <div style="font-family: sans-serif; padding: 20px; background: #f9fafb;">
-                <h2 style="color: #ea580c;">⚠️ Reamintire Termen Dosar</h2>
-                <p>Bună ziua, <strong>Av. ${profile.full_name || 'Colegu'}</strong>,</p>
-                <p>Acesta este un mesaj automat generat de <strong>JuristPRO</strong>.</p>
-                <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e5e7eb;">
-                  <p><strong>Dosar:</strong> ${event.title}</p>
-                  <p><strong>Client:</strong> ${event.clientName || 'N/A'}</p>
-                  <p><strong>Data/Ora:</strong> ${event.date} la ${event.time}</p>
-                  <p><strong>Locație:</strong> ${event.details || 'N/A'}</p>
-                </div>
-                <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">Vă rugăm să verificați aplicația pentru detalii suplimentare și strategii.</p>
-              </div>
-            `
-          });
-          console.log(`[ROBOT] Email trimis către ${profile.email} pentru dosarul ${event.title}`);
-        } catch (e) {
-          console.error(`[ROBOT] Eroare trimitere email:`, e);
+      const eventsRef = profileDoc.ref.collection('events');
+      
+      const eventsSnapshot = await eventsRef
+        .where('event_date', '==', tomorrowStr)
+        .where('whatsapp_alert', '==', true)
+        .get();
+        
+      if (!eventsSnapshot.empty) {
+        for (const eventDoc of eventsSnapshot.docs) {
+          const event = eventDoc.data();
+          
+          if (profile.email) {
+            console.log(`[ROBOT] ALERTĂ TRIGGER: Dosar ${event.title} - Email: ${profile.email}`);
+            
+            try {
+              const resend = getResend();
+              await resend.emails.send({
+                from: 'JuristPRO Robot <robot@developly.pro>',
+                to: [profile.email],
+                subject: `⚠️ ALERTĂ TERMEN: Dosar ${event.title}`,
+                html: `
+                  <div style="font-family: sans-serif; padding: 40px; background: #050505; color: white; border-radius: 20px;">
+                    <h1 style="color: #ea580c; font-size: 20px; font-weight: 900; text-transform: uppercase;">JuristPRO Automațiune</h1>
+                    <p style="color: #71717a;">Bună ziua, Av. ${profile.full_name || 'Colegu'},</p>
+                    <div style="background: #111; padding: 30px; border-radius: 20px; border: 1px solid #27272a; margin: 30px 0;">
+                      <p><strong>DOSAR:</strong> ${event.title}</p>
+                      <p><strong>TERMEN:</strong> ${event.event_date} la ${event.event_time}</p>
+                      <p><strong>INSTANȚĂ:</strong> ${event.details || 'N/A'}</p>
+                    </div>
+                    <p style="font-size: 11px; color: #3f3f46;">Notificare automată cu 24h înainte.</p>
+                  </div>
+                `
+              });
+            } catch (err) {
+              console.error('[ROBOT] Eroare trimitere email:', err);
+            }
+          }
         }
-
-        // 2. Placeholder for WhatsApp API (e.g., Twilio / CallMeBot)
-        // Daca ai cont Twilio, aici am putea pune:
-        // await sendTwilioWhatsApp(profile.phone, `Reamintire: Dosar ${event.title} - ${event.date}`);
       }
     }
   } catch (error) {

@@ -168,129 +168,140 @@ interface ISpeechRecognition {
                 <div class="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed font-mono">{{ aiResponse() }}</div>
             </div>
           }
-    <!-- Edit/Create Modal - ULTRA STABLE -->
+    <!-- Edit/Create Modal - PRO ARCHITECTURE -->
     @if (showModal) {
-      <div class="fixed inset-0 z-[999] flex items-center justify-center p-3 sm:p-5 bg-black/90 backdrop-blur-md overflow-hidden select-none">
+      <div class="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-5 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-300 overflow-hidden">
         
-        <!-- Modal Container: Fixed Size, No Jumping -->
-        <div class="bg-[#111111] border border-zinc-800 rounded-[2rem] w-full max-w-4xl shadow-[0_0_80px_rgba(0,0,0,0.8)] flex flex-col h-full max-h-[92vh] animate-in fade-in zoom-in duration-300 relative">
+        <!-- Modal Container -->
+        <div class="bg-[#0a0a0a] border border-zinc-800/80 rounded-[2.5rem] w-full max-w-4xl shadow-[0_40px_120px_-20px_rgba(0,0,0,1)] flex flex-col h-full max-h-[90vh] relative overflow-hidden">
           
-          <!-- Glossy Header - Static -->
-          <div class="p-6 border-b border-white/5 flex justify-between items-center bg-zinc-900/40 rounded-t-[2rem] shrink-0">
+          <!-- Header -->
+          <div class="h-24 px-8 border-b border-white/5 flex justify-between items-center bg-zinc-900/10 shrink-0">
             <div class="flex flex-col">
               <div class="flex items-center gap-3">
-                <div class="w-2.5 h-2.5 rounded-full bg-jurist-orange animate-pulse"></div>
+                <div class="w-3.5 h-3.5 rounded-full bg-jurist-orange shadow-[0_0_15px_rgba(234,88,12,0.6)] animate-pulse"></div>
                 <h3 class="text-xl text-white font-black tracking-tight uppercase">
-                  {{ currentEvent.id ? 'Editare Dosar' : 'Documentare Dosar Nou' }}
+                  {{ currentEvent.id ? 'Documentație Dosar' : 'Constituire Dosar' }}
                 </h3>
               </div>
-              <span class="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] mt-1">Sistem Centralizat de Management Juridic</span>
+              <span class="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.3em] mt-1.5 opacity-40">Sistem de Management Proactiv v2.4</span>
             </div>
             
-            <button (click)="closeModal()" class="text-zinc-500 hover:text-white p-2 hover:bg-white/5 rounded-full transition-all">
+            <button (click)="closeModal()" class="text-zinc-500 hover:text-white p-2.5 hover:bg-white/5 rounded-full transition-all">
               <mat-icon class="scale-125">close</mat-icon>
             </button>
           </div>
 
-          <!-- Body - Solid Scroll Area -->
-          <div class="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-12 select-text">
+          <!-- Body -->
+          <div class="flex-1 overflow-y-auto p-10 custom-scrollbar select-text">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
               
-              <!-- SECTION: CASE DETAILS -->
-              <div class="space-y-6">
-                <h4 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] border-l-2 border-jurist-orange pl-3">Informații Procesuale</h4>
-                
-                <div class="space-y-4">
-                  <div>
-                     <label for="modalTitle" class="block text-[10px] font-black text-zinc-500 uppercase mb-2 ml-1">Număr Dosar / Denumire</label>
-                     <input id="modalTitle" [(ngModel)]="currentEvent.title" placeholder="Ex: 245/3/2024" class="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 text-white focus:border-jurist-orange focus:ring-0 transition-all font-medium">
-                  </div>
+              <!-- Left Column -->
+              <div class="space-y-8">
+                <div>
+                   <h4 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-5 border-l-2 border-jurist-orange pl-3">Informații Dosar</h4>
+                   <div class="space-y-5">
+                      <div>
+                         <label for="modalTitle" class="block text-[10px] font-black text-zinc-600 uppercase mb-2 ml-1">Număr Dosar / Denumire</label>
+                         <input id="modalTitle" [(ngModel)]="currentEvent.title" placeholder="Ex: 245/3/2024" class="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 text-white focus:border-jurist-orange outline-none transition-all font-medium placeholder-zinc-800">
+                      </div>
 
-                  <div class="grid grid-cols-2 gap-4">
-                    <div>
-                      <label for="modalDate" class="block text-[10px] font-black text-zinc-500 uppercase mb-2 ml-1">Data Termen</label>
-                      <input id="modalDate" type="date" [(ngModel)]="currentEvent.date" class="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 text-white focus:border-jurist-orange [color-scheme:dark]">
-                    </div>
-                    <div>
-                      <label for="modalTime" class="block text-[10px] font-black text-zinc-500 uppercase mb-2 ml-1">Ora</label>
-                      <input id="modalTime" type="time" [(ngModel)]="currentEvent.time" class="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 text-white focus:border-jurist-orange [color-scheme:dark]">
-                    </div>
-                  </div>
+                      <div class="grid grid-cols-2 gap-4">
+                        <div>
+                           <label for="modalDate" class="block text-[10px] font-black text-zinc-600 uppercase mb-2 ml-1">Data Termen</label>
+                           <input id="modalDate" type="date" [(ngModel)]="currentEvent.date" class="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 text-white focus:border-jurist-orange outline-none [color-scheme:dark]">
+                        </div>
+                        <div>
+                           <label for="modalTime" class="block text-[10px] font-black text-zinc-600 uppercase mb-2 ml-1">Ora</label>
+                           <input id="modalTime" type="time" [(ngModel)]="currentEvent.time" class="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 text-white focus:border-jurist-orange outline-none [color-scheme:dark]">
+                        </div>
+                      </div>
 
-                  <div>
-                     <label for="modalClient" class="block text-[10px] font-black text-zinc-500 uppercase mb-2 ml-1">Client Beneficiar</label>
-                     <input id="modalClient" [(ngModel)]="currentEvent.clientName" placeholder="Numele clientului" class="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 text-white focus:border-jurist-orange">
-                  </div>
+                      <div>
+                         <label for="modalClient" class="block text-[10px] font-black text-zinc-600 uppercase mb-2 ml-1">Client Beneficiar</label>
+                         <input id="modalClient" [(ngModel)]="currentEvent.clientName" placeholder="Identitate client" class="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 text-white focus:border-jurist-orange outline-none placeholder-zinc-800">
+                      </div>
 
-                  <div>
-                     <label for="modalDetails" class="block text-[10px] font-black text-zinc-500 uppercase mb-2 ml-1">Instanța / Secția</label>
-                     <input id="modalDetails" [(ngModel)]="currentEvent.details" placeholder="Ex: Tribunalul Dolj, Secția Civilă" class="w-full bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 text-white focus:border-jurist-orange">
-                  </div>
+                      <div>
+                         <label for="modalDetails" class="block text-[10px] font-black text-zinc-600 uppercase mb-2 ml-1">Instanța / Secția</label>
+                         <input id="modalDetails" [(ngModel)]="currentEvent.details" placeholder="Ex: Tribunalul Dolj" class="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-4 text-white focus:border-jurist-orange outline-none placeholder-zinc-800">
+                      </div>
+                   </div>
+                </div>
+
+                <!-- Alert Widget -->
+                <div class="p-6 bg-emerald-500/5 border border-emerald-500/10 rounded-[2rem] flex items-center justify-between">
+                   <div class="flex items-center gap-4">
+                      <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                         <mat-icon>notifications_active</mat-icon>
+                      </div>
+                      <div>
+                         <div class="text-[11px] font-black text-white uppercase">Alertă Automată</div>
+                         <div class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1 opacity-60">Robot la fix 24h</div>
+                      </div>
+                   </div>
+                   <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" [(ngModel)]="currentEvent.whatsappAlert" [disabled]="!juristService.profile().phone" class="sr-only peer">
+                      <div class="w-12 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 shadow-inner"></div>
+                   </label>
                 </div>
               </div>
 
-              <!-- SECTION: SECONDARY INFO -->
+              <!-- Right Column -->
               <div class="space-y-8">
-                <!-- Automation Banner -->
-                <div class="p-6 bg-gradient-to-br from-green-950/30 to-zinc-900 border border-green-500/30 rounded-3xl group">
-                   <div class="flex items-center justify-between mb-4">
-                      <div class="flex items-center gap-3">
-                         <div class="bg-green-500/10 p-2.5 rounded-2xl text-green-500 group-hover:rotate-12 transition-transform">
-                            <mat-icon>notifications_active</mat-icon>
-                         </div>
-                         <span class="text-xs font-black text-green-500 uppercase tracking-tighter">Robot Alerte</span>
-                      </div>
-                      <label class="relative inline-flex items-center cursor-pointer scale-110">
-                        <input type="checkbox" [(ngModel)]="currentEvent.whatsappAlert" [disabled]="!juristService.profile().phone" class="sr-only peer">
-                        <div class="w-12 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
-                      </label>
-                   </div>
-                   <p class="text-[10px] text-zinc-400 leading-relaxed">Sistemul va trimite automat o notificare prin WhatsApp clientului cu fix 24 de ore înainte de termen.</p>
-                </div>
+                 <!-- Finance -->
+                 <div class="bg-zinc-900/20 p-7 rounded-[2.5rem] border border-white/5">
+                    <h4 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-6 border-l-2 border-emerald-500 pl-3">Contabilitate</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                       <div class="space-y-2">
+                         <span class="text-[9px] text-zinc-600 uppercase font-black ml-1">Total (RON)</span>
+                         <input type="number" [(ngModel)]="currentEvent.financial!.total" (input)="calcRest()" class="w-full bg-black/40 border border-zinc-800/80 rounded-xl p-4 text-sm text-white focus:border-emerald-500 outline-none">
+                       </div>
+                       <div class="space-y-2">
+                         <span class="text-[9px] text-zinc-600 uppercase font-black ml-1">Încasat (RON)</span>
+                         <input type="number" [(ngModel)]="currentEvent.financial!.paid" (input)="calcRest()" class="w-full bg-black/40 border border-zinc-800/80 rounded-xl p-4 text-sm text-white focus:border-emerald-500 outline-none">
+                       </div>
+                    </div>
+                    <div class="mt-5 flex justify-between items-center px-6 py-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                       <span class="text-[10px] font-black text-emerald-500 uppercase">Restanță</span>
+                       <span class="text-xl font-black text-emerald-400 font-mono">{{ currentEvent.financial!.rest }} RON</span>
+                    </div>
+                 </div>
 
-                <!-- Financial Status -->
-                <div class="space-y-4">
-                   <h4 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] border-l-2 border-green-600 pl-3">Contabilitate Dosar</h4>
-                   <div class="grid grid-cols-3 gap-3">
-                      <div class="bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800">
-                        <span class="block text-[8px] font-bold text-zinc-500 uppercase mb-2">Total</span>
-                        <input type="number" [(ngModel)]="currentEvent.financial!.total" (input)="calcRest()" class="w-full bg-transparent text-white font-mono text-lg outline-none">
-                      </div>
-                      <div class="bg-green-900/10 p-4 rounded-2xl border border-green-900/30">
-                        <span class="block text-[8px] font-bold text-green-600 uppercase mb-2">Incasat</span>
-                        <input type="number" [(ngModel)]="currentEvent.financial!.paid" (input)="calcRest()" class="w-full bg-transparent text-green-400 font-mono text-lg outline-none">
-                      </div>
-                      <div class="bg-red-900/10 p-4 rounded-2xl border border-red-900/30">
-                        <span class="block text-[8px] font-bold text-red-600 uppercase mb-2">Rest</span>
-                        <div class="text-red-500 font-mono text-lg font-bold">{{ currentEvent.financial!.rest }}</div>
-                      </div>
-                   </div>
-                </div>
-
-                <!-- Strategic Notes -->
-                <div class="space-y-3">
-                   <div class="flex justify-between items-center">
-                     <h4 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] border-l-2 border-blue-500 pl-3">Strategie & Notițe</h4>
-                     <button (click)="toggleDictation()" [class]="'flex items-center gap-2 px-4 py-2 rounded-full text-[9px] font-black transition-all ' + (isListening ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.4)]' : 'bg-transparent text-zinc-500 border border-zinc-800 font-bold')">
-                        <mat-icon class="text-[14px] w-3 h-3">{{ isListening ? 'mic' : 'mic_none' }}</mat-icon>
-                        {{ isListening ? 'DICTEZ...' : 'VOCAL' }}
-                     </button>
-                   </div>
-                   <textarea [(ngModel)]="currentEvent.notes" class="w-full bg-zinc-900/30 border border-zinc-800 rounded-3xl p-5 text-sm text-zinc-300 focus:border-jurist-orange outline-none h-32 md:h-44 resize-none transition-all placeholder-zinc-700" placeholder="Obiective, martori, probe, concluzii..."></textarea>
-                </div>
+                 <!-- Strategy -->
+                 <div class="flex flex-col flex-1 min-h-[250px]">
+                    <div class="flex justify-between items-center mb-4">
+                       <h4 class="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] border-l-2 border-blue-500 pl-3">Strategie</h4>
+                       <button (click)="toggleDictation()" [class]="'flex items-center gap-2 px-5 py-2.5 rounded-full text-[9px] font-black transition-all ' + (isListening ? 'bg-white text-black shadow-[0_0_25px_rgba(255,255,255,0.4)]' : 'bg-transparent text-zinc-500 border border-zinc-800')">
+                          <mat-icon>{{ isListening ? 'mic' : 'mic_none' }}</mat-icon>
+                          {{ isListening ? 'DICTEZ...' : 'VOCAL' }}
+                       </button>
+                    </div>
+                    <textarea [(ngModel)]="currentEvent.notes" class="flex-1 w-full bg-zinc-900/20 border border-zinc-800/50 rounded-[2rem] p-7 text-sm text-zinc-300 focus:border-jurist-orange outline-none resize-none transition-all placeholder-zinc-800 font-medium" placeholder="Notează obiectivele strategice..."></textarea>
+                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Solid Action Footer - Static -->
-          <div class="p-8 border-t border-white/5 bg-zinc-900/60 rounded-b-[2rem] flex flex-col sm:flex-row justify-between items-center gap-4 shrink-0">
-             <div class="hidden sm:flex items-center gap-2 text-[10px] text-zinc-500 font-bold uppercase italic">
-                <mat-icon class="text-[12px] w-3 h-3">security</mat-icon> Salvare securizată Cloud
+          <!-- Footer -->
+          <div class="h-32 px-10 border-t border-white/5 bg-zinc-900/30 flex flex-col sm:flex-row justify-between items-center gap-6 shrink-0">
+             <div class="hidden sm:flex items-center gap-5">
+                <div class="w-10 h-10 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-500">
+                   <mat-icon class="scale-90">security</mat-icon>
+                </div>
+                <div class="flex flex-col">
+                   <span class="text-[11px] text-zinc-400 font-black uppercase tracking-tight">Securitate Cloud Activă</span>
+                   <span class="text-[8px] text-zinc-700 font-bold uppercase tracking-widest">Protocol Criptare AES-256</span>
+                </div>
              </div>
-             <div class="flex items-center gap-4 w-full sm:w-auto">
-               <button (click)="closeModal()" class="flex-1 sm:flex-none px-8 py-4 rounded-2xl text-zinc-400 hover:text-white font-bold transition-all uppercase text-[11px] tracking-widest">Anulează</button>
-               <button (click)="saveEvent()" [disabled]="saving() || !currentEvent.title" class="flex-1 sm:flex-none px-12 py-4 rounded-2xl bg-jurist-orange text-white font-black hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-30 shadow-2xl shadow-orange-950/20 uppercase text-[11px] tracking-widest">
-                 {{ saving() ? 'Salvare...' : (currentEvent.id ? 'Actualizează' : 'Finalizează') }}
+             
+             <div class="flex items-center gap-5 w-full sm:w-auto">
+               <button (click)="closeModal()" class="flex-1 sm:flex-none px-12 py-4.5 rounded-2xl text-zinc-500 hover:text-white font-black transition-all uppercase text-[11px] tracking-[0.2em]">Abandon</button>
+               <button (click)="saveEvent()" [disabled]="saving() || !currentEvent.title" class="flex-1 sm:flex-none px-20 py-4.5 rounded-2xl bg-jurist-orange text-white font-black hover:bg-orange-600 transition-all active:scale-95 disabled:opacity-30 shadow-2xl shadow-orange-950/40 uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3">
+                 @if (saving()) {
+                    <div class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                 }
+                 {{ saving() ? 'PROCESARE...' : (currentEvent.id ? 'ACTUALIZARE' : 'FINALIZARE') }}
                </button>
              </div>
           </div>
