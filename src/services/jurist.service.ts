@@ -563,6 +563,46 @@ export class JuristService {
     }
   }
 
+  sendWhatsAppAlert(event: CalendarEvent) {
+    const phone = this.profile().phone;
+    if (!phone) {
+      this.notificationService.warning('Vă rugăm să configurați numărul de telefon în profil pentru a trimite alerte.');
+      return;
+    }
+
+    // Clean phone number (keep only digits)
+    const cleanPhone = phone.replace(/\D/g, '');
+    // Ensure prefix 40 for Romania if not already present, assuming 10 digits means local RO
+    let formattedPhone = cleanPhone;
+    if (cleanPhone.length === 10 && cleanPhone.startsWith('0')) {
+      formattedPhone = '40' + cleanPhone.substring(1);
+    } else if (cleanPhone.length === 9) {
+      formattedPhone = '40' + cleanPhone;
+    }
+
+    const eventNames: Record<string, string> = {
+      'court': 'Termen Instanță',
+      'deadline': 'Termen Limită',
+      'meeting': 'Întâlnire/Consultare'
+    };
+
+    const message = encodeURIComponent(
+      `🔔 *ALERTA JURISTPRO*\n\n` +
+      `📌 *Eveniment:* ${event.title}\n` +
+      `📂 *Tip:* ${eventNames[event.type] || event.type}\n` +
+      `👤 *Client:* ${event.clientName}\n` +
+      `📅 *Data:* ${event.date}\n` +
+      `🕒 *Ora:* ${event.time}\n` +
+      `⚖️ *Obiect:* ${event.caseObject}\n\n` +
+      `*Locație/Detalii:* ${event.details || 'FĂRĂ'}\n` +
+      `*Note:* ${event.notes || 'FĂRĂ'}\n\n` +
+      `_Generat de JuristPRO AI_`
+    );
+
+    const url = `https://wa.me/${formattedPhone}?text=${message}`;
+    window.open(url, '_blank');
+  }
+
   async submitTicket(ticket: Omit<SupportTicket, 'id' | 'date' | 'status'>) {
     const user = this.authService.currentUser();
     
